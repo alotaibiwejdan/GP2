@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -176,11 +177,22 @@ class _SettingsPageState extends State<SettingsPage> {
             ], cardColor),
 
             const SizedBox(height: 30),
-            TextButton.icon(
-              onPressed: () => print("Logout"),
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
+           // استبدلي الكود القديم بهذا
+TextButton.icon(
+  onPressed: () {
+    // هذا الأمر يمسح كل المسارات السابقة وينقلك لصفحة اللوجن
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false, // false تعني "احذف كل الصفحات السابقة"
+    );
+  },
+  icon: const Icon(Icons.logout, color: Colors.red),
+  label: const Text(
+    'تسجيل الخروج',
+    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+  ),
+),
           ],
         ),
       ),
