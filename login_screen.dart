@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/forgot_password_screen.dart';
 import 'appointment_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -168,22 +169,29 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 25),
 
               // رابط إنشاء حساب جديد
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('ليس لديك حساب؟'),
-                  TextButton(
-                    onPressed: () {
-                      // هنا تضيف شاشة التسجيل إذا موجودة
-                    },
-                    child: const Text(
-                      'أنشئ حسابًا جديدًا',
-                      style: TextStyle(
-                          color: Colors.pink, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
+              // رابط إنشاء حساب جديد
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    const Text('ليس لديك حساب؟'),
+    TextButton(
+      onPressed: () {
+        // نستخدم الاسم اللي عندك بالضبط
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const RegisterScreen(), 
+          ),
+        );
+      },
+      child: const Text(
+        'أنشئ حسابًا جديدًا',
+        style: TextStyle(
+            color: Colors.pink, fontWeight: FontWeight.bold),
+      ),
+    ),
+  ],
+),
             ],
           ),
         ),
@@ -191,3 +199,7 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
+
+  }
+}
+
