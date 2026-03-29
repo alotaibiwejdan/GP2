@@ -509,4 +509,3 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
 //   }
 
 // }
-
