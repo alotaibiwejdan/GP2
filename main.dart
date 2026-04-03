@@ -1,20 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // 1. استيراد المكتبة الأساسية
 import 'onboarding_screen.dart';
-// 1. لازم تستوردين صفحة الإعدادات عشان يقرأ المتغير العام
 import 'settings_page.dart'; 
 import 'appointment_details_page.dart';
 import 'appointment_page.dart';
 import 'edit_appointment_page.dart';
 
-void main() {
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options:  FirebaseOptions(
+      apiKey:"AIzaSyAvj2HL2LD2HDHsD2GyEy5RBRW_CnwnRxc",
+      authDomain:"mersal-90cf9.firebaseapp.com",
+      projectId:"mersal-90cf9",
+      storageBucket:"mersal-90cf9.firebasestorage.app",
+      messagingSenderId:"760561356873",
+      appId:"1:760561356873:web:159892e163597019766f98",
+      measurementId:"G-3MTL89GLZ3",
+    ),
+  );
+
   runApp(const MyApp());
 }
 
-// 2. حولنا MyApp إلى StatefulWidget عشان يقدر "يعيد بناء نفسه" لما يتغير الثيم
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // هذه السطر بنحتاجه عشان ننادي إعادة البناء من أي مكان
   static _MyAppState? of(BuildContext context) => context.findAncestorStateOfType<_MyAppState>();
 
   @override
@@ -23,7 +37,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   
-  // دالة لتحديث الواجهة كاملة
   void changeTheme() {
     setState(() {});
   }
@@ -34,7 +47,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false, 
       title: 'مرسال',
       
-      // 3. هنا الربط السحري بالمتغير اللي في صفحة الإعدادات
+      // الربط بالثيم (شغال تمام مثل ما سويتيه)
       themeMode: isGlobalDarkMode ? ThemeMode.dark : ThemeMode.light,
       
       theme: ThemeData(
@@ -44,7 +57,6 @@ class _MyAppState extends State<MyApp> {
         primarySwatch: Colors.purple,
       ),
       
-      // إعدادات الثيم الداكن (الأسود)
       darkTheme: ThemeData(
         fontFamily: 'Tajawal',
         useMaterial3: true,
