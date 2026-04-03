@@ -1,15 +1,57 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/forgot_password_screen.dart';
 import 'appointment_screen.dart';
 import 'register_screen.dart';
-import 'settings_page.dart'; // ضروري عشان يعرف هل إحنا في دارك مود أو لا
+import 'settings_page.dart';
 
-class LoginScreen extends StatelessWidget {
+// حولناه لـ StatefulWidget عشان نقدر نستخدم الـ Controllers
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  // 1. تعريف المتحكمات لقراءة الإيميل والباسورد
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // دالة تسجيل الدخول
+  Future<void> _signIn() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      
+      // إذا نجح الدخول، ننتقل لصفحة المواعيد
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AppointmentScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = "حدث خطأ ما";
+      
+      // التعديل هنا: أضفنا الأكواد الجديدة اللي صار يرسلها فايربيس
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        message = "المستخدم غير موجود";
+      } 
+      else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = "كلمة المرور غير صحيحة";
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 1. تحديد الألوان بناءً على الوضع (فاتح أو داكن)
     final textColor = isGlobalDarkMode ? Colors.white : Colors.black;
     final bgColor = isGlobalDarkMode ? const Color(0xFF121212) : Colors.white;
     final inputFillColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
@@ -18,27 +60,23 @@ class LoginScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: bgColor,
-        body: Center( // يخلي المحتوى في النص
+        body: Center(
           child: SingleChildScrollView(
-            // تقليل الـ padding لضمان عدم ظهور خطوط الصفراء (Overflow)
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-                
-                // شعار التطبيق (اللوجو)
                 Center(
                   child: Image.asset(
                     'assets/MersalImage/Mersalblack.png',
-                    height: 90, // صغرنا الحجم شوي عشان المساحة
-                    color: isGlobalDarkMode ? Colors.white : null, // يقلب أبيض في الدارك مود
+                    height: 90,
+                    color: isGlobalDarkMode ? Colors.white : null,
                     errorBuilder: (context, error, stackTrace) {
                       return const Icon(Icons.campaign, size: 80, color: Colors.purple);
                     },
                   ),
                 ),
-                
                 const SizedBox(height: 20),
                 Text(
                   'سجل الدخول لمتابعة مواعيدك',
@@ -52,15 +90,15 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
 
-                // حقل البريد الإلكتروني
+                // حقل البريد الإلكتروني (أضفنا الـ controller)
                 _buildTextField(
+                  controller: _emailController,
                   label: 'البريد الإلكتروني',
                   hint: 'أدخل بريدك الإلكتروني',
                   textColor: textColor,
                   fillColor: inputFillColor,
                 ),
                 
-                // رابط نسيت كلمة المرور
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
@@ -77,8 +115,9 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
 
-                // حقل كلمة المرور
+                // حقل كلمة المرور (أضفنا الـ controller)
                 _buildTextField(
+                  controller: _passwordController,
                   label: 'كلمة المرور',
                   hint: 'أدخل كلمة المرور',
                   isObscure: true,
@@ -88,15 +127,11 @@ class LoginScreen extends StatelessWidget {
                 
                 const SizedBox(height: 25),
 
-                // زر تسجيل الدخول الأساسي
+                // زر تسجيل الدخول (نادينا دالة الـ _signIn)
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AppointmentScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
+onPressed: () {
+  _signIn();
+},                  style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD65A4A),
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 50),
@@ -118,17 +153,13 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // زر جوجل
                 _buildSocialButton(
                   label: 'Google',
                   iconPath: 'assets/MersalImage/Googel_Logo.png',
                   onPressed: () {},
                   isDark: isGlobalDarkMode,
                 ),
-                
                 const SizedBox(height: 10),
-                
-                // زر أبل
                 _buildSocialButton(
                   label: 'Apple',
                   iconData: Icons.apple,
@@ -136,10 +167,7 @@ class LoginScreen extends StatelessWidget {
                   isDark: isGlobalDarkMode,
                   isApple: true,
                 ),
-                
                 const SizedBox(height: 20),
-                
-                // رابط إنشاء حساب
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -160,9 +188,17 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لبناء الحقول (Textfields)
-  Widget _buildTextField({required String label, required String hint, bool isObscure = false, required Color textColor, required Color fillColor}) {
+  // عدلنا الدالة المساعدة لاستقبال الـ controller
+  Widget _buildTextField({
+    required TextEditingController controller, 
+    required String label, 
+    required String hint, 
+    bool isObscure = false, 
+    required Color textColor, 
+    required Color fillColor
+  }) {
     return TextField(
+      controller: controller,
       obscureText: isObscure,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
@@ -178,7 +214,6 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لبناء أزرار التواصل الاجتماعي
   Widget _buildSocialButton({required String label, String? iconPath, IconData? iconData, required VoidCallback onPressed, required bool isDark, bool isApple = false}) {
     return ElevatedButton(
       onPressed: onPressed,
