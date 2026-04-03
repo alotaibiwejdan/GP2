@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
-import 'main.dart'; // تأكدي إن ملف الماين اسمه main.dart عندك
+import 'main.dart'; 
 
-// متغير عام للوضع الداكن
 bool isGlobalDarkMode = false; 
 
 class SettingsPage extends StatefulWidget {
@@ -14,9 +13,46 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String currentLanguage = 'العربية';
+  
+  // هذه المتغيرات خليتها فوق عشان تتحدث لما نضغط حفظ
   String userName = 'ساره احمد';
   String userEmail = 'sara.ahmed@example.com';
 
+  // 1. تفعيل زر التعديل (هذا الجزء الجديد فقط)
+  void _showEditProfileDialog() {
+    TextEditingController nameEdit = TextEditingController(text: userName);
+    TextEditingController emailEdit = TextEditingController(text: userEmail);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('تعديل البيانات', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameEdit, textAlign: TextAlign.right, decoration: const InputDecoration(labelText: 'الاسم')),
+            TextField(controller: emailEdit, textAlign: TextAlign.right, decoration: const InputDecoration(labelText: 'الايميل')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                userName = nameEdit.text;
+                userEmail = emailEdit.text;
+              });
+              Navigator.pop(context);
+            }, 
+            child: const Text('حفظ')
+          ),
+        ],
+      ),
+    );
+  }
+
+  // كل دوالك الأصلية بدون أي تغيير:
   void _showChangePasswordDialog() {
     showDialog(
       context: context,
@@ -26,38 +62,19 @@ class _SettingsPageState extends State<SettingsPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'أدخل الكود المكون من 4 أرقام الذي أرسلناه إلى بريدك الإلكتروني',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
+            const Text('أدخل الكود المكون من 4 أرقام الذي أرسلناه إلى بريدك الإلكتروني', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 20),
-            TextField(
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              maxLength: 4,
-              decoration: InputDecoration(
-                hintText: '0 0 0 0',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
+            TextField(keyboardType: TextInputType.number, textAlign: TextAlign.center, maxLength: 4, decoration: InputDecoration(hintText: '0 0 0 0', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم التحقق من الكود بنجاح')));
-            },
-            child: const Text('تحقق'),
-          ),
+          TextButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم التحقق من الكود بنجاح'))); }, child: const Text('تحقق')),
         ],
       ),
     );
   }
 
-  // 2. تصحيح دالة التنبيهات (تم فصلها عن الدارك مود)
   void _showNotificationsDialog() {
     bool pushNotify = true;
     showDialog(
@@ -65,14 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('إدارة التنبيهات', textAlign: TextAlign.center),
-          content: SwitchListTile(
-            title: const Text('تنبيهات التطبيق'),
-            value: pushNotify,
-            activeColor: Colors.purple,
-            onChanged: (value) {
-              setDialogState(() => pushNotify = value);
-            },
-          ),
+          content: SwitchListTile(title: const Text('تنبيهات التطبيق'), value: pushNotify, activeColor: Colors.purple, onChanged: (value) => setDialogState(() => pushNotify = value)),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('تم'))],
         ),
       ),
@@ -80,43 +90,20 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showLanguageDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(title: const Text('العربية', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'العربية'); Navigator.pop(context); }),
-          const Divider(),
-          ListTile(title: const Text('English', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'English'); Navigator.pop(context); }),
-        ],
-      ),
-    );
+    showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (context) => Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(title: const Text('العربية', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'العربية'); Navigator.pop(context); }),
+      const Divider(),
+      ListTile(title: const Text('English', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'English'); Navigator.pop(context); }),
+    ]));
   }
 
   void _showHelpCenter() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('مركز المساعدة'),
-        content: const Text('لأي استفسار تواصل معنا:\nEmail: support@mersal.com\nTel: 92000000'),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
-      ),
-    );
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('مركز المساعدة'), content: const Text('لأي استفسار تواصل معنا:\nEmail: support@mersal.com\nTel: 92000000'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))]));
   }
 
   void _showAboutMersal() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('عن مرسال'),
-        content: const Text('تطبيق مرسال هو تطبيق ذكي يساعد على تنظيم الاجتماعات وتتبع وصول المشاركين ومعرفة وقت الوصول المتوقع باستخدام الموقع والتنبيهات الذكية لتحسين التنسيق بين المستخدمين .'),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('شكراً'))],
-      ),
-    );
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('عن مرسال'), content: const Text('تطبيق مرسال هو تطبيق ذكي يساعد على تنظيم الاجتماعات وتتبع وصول المشاركين ومعرفة وقت الوصول المتوقع باستخدام الموقع والتنبيهات الذكية لتحسين التنسيق بين المستخدمين.',), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('شكراً'))]));
   }
-
-  void _showEditProfileDialog() { /* تعديل الحساب */ }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
               decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(20)),
               child: Row(
                 children: [
+                  // هنا ربطنا زر التعديل بالدالة
                   TextButton(onPressed: _showEditProfileDialog, child: const Text('تعديل', style: TextStyle(color: Colors.purple))),
                   const Spacer(),
                   Column(
@@ -154,6 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                   const SizedBox(width: 15),
+                  // رجعت لك الصورة زي ما كانت بالضبط
                   CircleAvatar(radius: 35, backgroundImage: const AssetImage('assets/images/user.png')),
                 ],
               ),
@@ -186,6 +175,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // الدوال المساعدة (نفس كودك بالضبط)
   Widget _buildSectionHeader(String title) { return Container(width: double.infinity, padding: const EdgeInsets.only(bottom: 10), child: Text(title, textAlign: TextAlign.right, style: const TextStyle(color: Colors.grey))); }
   Widget _buildSettingsBox(List<Widget> children, Color color) { return Container(margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.withOpacity(0.1))), child: Column(children: children)); }
   
@@ -196,10 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ? Switch(
             value: isGlobalDarkMode, 
             onChanged: (value) {
-              setState(() {
-                isGlobalDarkMode = value;
-              });
-              // استدعاء الماين لتحديث الثيم في كل التطبيق
+              setState(() { isGlobalDarkMode = value; });
               MyApp.of(context)?.changeTheme();
             }, 
             activeColor: Colors.purple
