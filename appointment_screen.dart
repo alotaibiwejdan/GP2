@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'group_meeting_page.dart';
 import 'settings_page.dart';
 import 'appointment_page.dart';
@@ -27,9 +29,11 @@ class AppointmentScreen extends StatefulWidget {
 }
 
 class _AppointmentScreenState extends State<AppointmentScreen> {
-  DateTime selectedDate = DateTime(2025, 12, 25);
+  // التاريخ الافتراضي كما كان في كودك
+  DateTime selectedDate = DateTime(2025, 12, 25); 
   bool showGroupOnly = false;
 
+  // مواعيدك الأصلية اللي ما نستغني عنها
   final List<Appointment> allAppointments = [
     Appointment(
       title: "موعد طبيب الأسنان",
@@ -57,7 +61,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       context: context,
       initialDate: selectedDate,
       firstDate: DateTime(2025),
-      lastDate: DateTime(2026),
+      lastDate: DateTime(2030),
     );
 
     if (picked != null) {
@@ -69,19 +73,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // الاعتماد على المتغير العام اللي في كودك (isGlobalDarkMode)
+    // استدعاء متغيرات الألوان (تأكدي من وجود isGlobalDarkMode في مشروعك)
     final bgColor = isGlobalDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
     final cardColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isGlobalDarkMode ? Colors.white : Colors.black;
     final appBarColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
-    final filteredAppointments = allAppointments.where((appointment) {
-      final sameDate = appointment.date.year == selectedDate.year &&
-          appointment.date.month == selectedDate.month &&
-          appointment.date.day == selectedDate.day;
-      final groupFilter = showGroupOnly ? appointment.isGroup : true;
-      return sameDate && groupFilter;
-    }).toList();
+    String formattedDate = "${selectedDate.year}-${selectedDate.month}-${selectedDate.day}";
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -89,7 +87,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         backgroundColor: appBarColor,
         elevation: 0,
         centerTitle: true,
-        // اللوقو في المنتصف بدال العنوان القديم
         title: Image.asset(
           'assets/images/logo.png', 
           height: 40,
@@ -111,18 +108,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               Icons.groups,
               color: showGroupOnly ? const Color(0xFFD65A4A) : textColor,
             ),
-            onPressed: () {
-              setState(() {
-                showGroupOnly = !showGroupOnly;
-              });
-            },
+            onPressed: () => setState(() => showGroupOnly = !showGroupOnly),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFFD65A4A),
         onPressed: () {
-          // ربط زر الزائد بصفحة الإضافة
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AppointmentPage()),
@@ -162,113 +154,126 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // "مواعيدي" يمين والتاريخ مقابلها
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "مواعيدي",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    fontFamily: 'Tajawal',
-                  ),
-                ),
-                Text(
-                  "التاريخ: ${selectedDate.day}-${selectedDate.month}-${selectedDate.year}",
+                Text("مواعيدي", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor, fontFamily: 'Tajawal')),
+                Text("التاريخ: ${selectedDate.day}-${selectedDate.month}-${selectedDate.year}",
                   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView(
-                children: [
-                  if (filteredAppointments.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 50),
-                        child: Text("لا توجد مواعيد لهذا اليوم", style: TextStyle(color: textColor)),
-                      ),
-                    ),
-                  ...filteredAppointments.map((appointment) {
-                    final isFirstCard = appointment == filteredAppointments.first;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: InkWell(
-                        onTap: () {
-                          if (appointment.isGroup) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const GroupMeetingPage()),
-                            );
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: isFirstCard
-                                ? const LinearGradient(colors: [Color(0xfff857a6), Color(0xffff5858)])
-                                : null,
-                            color: isFirstCard ? null : cardColor,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: (isGlobalDarkMode || isFirstCard)
-                                ? []
-                                : [BoxShadow(color: Colors.grey.shade300, blurRadius: 8)],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    appointment.title,
-                                    style: TextStyle(
-                                      color: isFirstCard ? Colors.white : textColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    appointment.place,
-                                    style: TextStyle(
-                                      color: isFirstCard ? Colors.white70 : Colors.grey,
-                                    ),
-                                  ),
-                                  if (appointment.isGroup)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Text(
-                                        "موعد جماعي - اضغط للتفاصيل",
-                                        style: TextStyle(
-                                          color: isFirstCard ? Colors.white : Colors.green,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              Text(
-                                appointment.time,
-                                style: TextStyle(
-                                  color: isFirstCard ? Colors.white : const Color(0xFFD65A4A),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ],
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('appointments')
+                    .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                    .where('date', isEqualTo: formattedDate)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  // 1. تصفية القائمة الثابتة (كودك الأصلي)
+                  final filteredStatic = allAppointments.where((appointment) {
+                    final sameDate = appointment.date.year == selectedDate.year &&
+                        appointment.date.month == selectedDate.month &&
+                        appointment.date.day == selectedDate.day;
+                    final groupFilter = showGroupOnly ? appointment.isGroup : true;
+                    return sameDate && groupFilter;
+                  }).toList();
+
+                  // 2. تجميع كل المواعيد (كودك + فايربيس)
+                  List<Widget> combinedWidgets = [];
+
+                  // إضافة كودك القديم أولاً
+                  for (var app in filteredStatic) {
+                    combinedWidgets.add(_buildAppointmentItem(
+                      title: app.title,
+                      place: app.place,
+                      time: app.time,
+                      isGroup: app.isGroup,
+                      isFirst: combinedWidgets.isEmpty,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                    ));
+                  }
+
+                  // إضافة الجديد من الفايربيس
+                  if (snapshot.hasData) {
+                    for (var doc in snapshot.data!.docs) {
+                      var data = doc.data() as Map<String, dynamic>;
+                      combinedWidgets.add(_buildAppointmentItem(
+                        title: data['title'] ?? '',
+                        place: data['location'] ?? '',
+                        time: data['time'] ?? '',
+                        isGroup: data['isGroup'] ?? false,
+                        isFirst: combinedWidgets.isEmpty,
+                        cardColor: cardColor,
+                        textColor: textColor,
+                      ));
+                    }
+                  }
+
+                  if (combinedWidgets.isEmpty) {
+                    return Center(child: Text("لا توجد مواعيد لهذا اليوم", style: TextStyle(color: textColor)));
+                  }
+
+                  return ListView(children: combinedWidgets);
+                },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // دالة بناء الكرت مع استعادة الروابط (Navigation)
+  Widget _buildAppointmentItem({
+    required String title,
+    required String place,
+    required String time,
+    required bool isGroup,
+    required bool isFirst,
+    required Color cardColor,
+    required Color textColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () {
+          if (isGroup) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const GroupMeetingPage()));
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: isFirst ? const LinearGradient(colors: [Color(0xfff857a6), Color(0xffff5858)]) : null,
+            color: isFirst ? null : cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: (isGlobalDarkMode || isFirst) ? [] : [BoxShadow(color: Colors.grey.shade300, blurRadius: 8)],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: isFirst ? Colors.white : textColor, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text(place, style: TextStyle(color: isFirst ? Colors.white70 : Colors.grey)),
+                  if (isGroup)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("موعد جماعي - اضغط للتفاصيل", 
+                        style: TextStyle(color: isFirst ? Colors.white : Colors.green, fontSize: 12)),
+                    ),
+                ],
+              ),
+              Text(time, style: TextStyle(color: isFirst ? Colors.white : const Color(0xFFD65A4A), fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
         ),
       ),
     );
