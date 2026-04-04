@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ ضروري للتحكم في مدخلات النص (English only)
+import 'package:flutter/services.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/appointment_screen.dart';
 import 'package:flutter_application_1/login_screen.dart';
@@ -199,7 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                   const SizedBox(height: 20),
 
-                  // رابط العودة لتسجيل الدخول
+                  // لتسجيل الدخول
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
