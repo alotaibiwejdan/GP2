@@ -8,148 +8,47 @@ class EditAppointmentPage extends StatefulWidget {
 }
 
 class _EditAppointmentPageState extends State<EditAppointmentPage> {
-
-  DateTime? selectedDate;
-  TimeOfDay? selectedTime;
-
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
-
-  final Color primaryOrange = const Color.fromARGB(255, 221, 138, 246);
+  final Color mersalPurple = const Color(0xFFBB86FC);
+  final Color confirmRed = const Color(0xFFFF5A5A);
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl, 
+      textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
-
-        
+        backgroundColor: const Color(0xFFFAFBFD),
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
+          title: const Text("تعديل الموعد", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           centerTitle: true,
-          title: const Text(
-            "تعديل الموعد",
-            style: TextStyle(
-              color: Color.fromARGB(255, 222, 139, 250),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
+          leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
         ),
-
-        
-        body: SafeArea(
+        body: Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      
-                      _buildLabel("اسم الموعد"),
-                      _buildTextField(
-                        controller: titleController,
-                        hint: "اكتب اسم الموعد",
-                        icon: Icons.title,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      
-                      _buildLabel("الموقع"),
-                      _buildTextField(
-                        controller: locationController,
-                        hint: "أدخل موقع الموعد",
-                        icon: Icons.location_on_outlined,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      
-                      Row(
-                        children: [
-
-                          /// التاريخ
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("التاريخ"),
-                                GestureDetector(
-                                  onTap: _pickDate,
-                                  child: _buildSelector(
-                                    selectedDate == null
-                                        ? "اختر تاريخًا"
-                                        : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
-                                    Icons.calendar_month,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("الوقت"),
-                                GestureDetector(
-                                  onTap: _pickTime,
-                                  child: _buildSelector(
-                                    selectedTime == null
-                                        ? "اختر وقتًا"
-                                        : selectedTime!.format(context),
-                                    Icons.
-                                    access_time,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 120),
-                    ],
-                  ),
-                ),
+              _buildLabel("اسم الموعد"),
+              _buildTextField(hint: "اجتماع فريق التسويق الأسبوعي", icon: Icons.title),
+              const SizedBox(height: 20),
+              _buildLabel("الموقع"),
+              _buildTextField(hint: "مبنى innovations، الطابق السابع", icon: Icons.location_on_outlined),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildLabel("التاريخ"), _buildSelector("25 أكتوبر 2024", Icons.calendar_month)])),
+                  const SizedBox(width: 15),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildLabel("الوقت"), _buildSelector("10:30 صباحاً", Icons.access_time)])),
+                ],
               ),
-
-              
-              Container(
-                padding: const EdgeInsets.all(16),
+              const Spacer(),
+              SizedBox(
                 width: double.infinity,
-                height: 85,
                 child: ElevatedButton(
-                  onPressed: () {
-                    
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryOrange,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    "حفظ التعديلات",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(backgroundColor: confirmRed, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), padding: const EdgeInsets.symmetric(vertical: 15)),
+                  child: const Text("حفظ التعديلات", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -159,101 +58,26 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     );
   }
 
-  
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
+  Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: TextStyle(color: mersalPurple, fontWeight: FontWeight.bold)));
 
-  
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-  }) {
+  Widget _buildTextField({required String hint, required IconData icon}) {
     return TextField(
-      controller: controller,
       textAlign: TextAlign.right,
-      textDirection: TextDirection.rtl,
       decoration: InputDecoration(
         hintText: hint,
+        suffixIcon: Icon(icon, color: mersalPurple),
         filled: true,
         fillColor: Colors.white,
-
-        prefixIcon: Icon(icon, color: primaryOrange),
-
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey.shade200)),
       ),
     );
   }
 
-  
   Widget _buildSelector(String text, IconData icon) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: primaryOrange),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade200)),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(text, style: const TextStyle(color: Colors.black54)), Icon(icon, color: mersalPurple)]),
     );
-  }
-
-  
-  Future<void> _pickDate() async {
-    DateTime? date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
-    );
-
-    if (date != null) {
-      setState(() {
-        selectedDate = date;
-      });
-    }
-  }
-
-  
-  Future<void> _pickTime() async {
-    TimeOfDay? time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
-    if (time != null) {
-      setState(() {
-        selectedTime = time;
-      });
-    }
   }
 }
