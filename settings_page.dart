@@ -16,7 +16,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String userName = 'ساره احمد';
   String userEmail = 'sara.ahmed@example.com';
 
-  // ✅ 1. قائمة الصور البسيطة (تأكدي من وجود الصور في مجلد assets)
+  // ✅ الجزء المضاف لاختيار الصورة (مع التأكد من الامتدادات)
   String selectedAvatar = 'assets/images/user.png';
   final List<String> avatarOptions = [
     'assets/images/user.png',
@@ -24,7 +24,6 @@ class _SettingsPageState extends State<SettingsPage> {
     'assets/images/avatar2.jpg',
   ];
 
-  // ✅ 2. دالة تفتح لك قائمة الصور تحت عشان تختارين منها
   void _showAvatarPicker() {
     showModalBottomSheet(
       context: context,
@@ -58,10 +57,10 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // ✅ دوالك الأصلية (محتويات الأزرار) كما هي بالضبط:
   void _showEditProfileDialog() {
     TextEditingController nameEdit = TextEditingController(text: userName);
     TextEditingController emailEdit = TextEditingController(text: userEmail);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -76,27 +75,66 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                userName = nameEdit.text;
-                userEmail = emailEdit.text;
-              });
-              Navigator.pop(context);
-            }, 
-            child: const Text('حفظ')
-          ),
+          TextButton(onPressed: () {
+            setState(() { userName = nameEdit.text; userEmail = emailEdit.text; });
+            Navigator.pop(context);
+          }, child: const Text('حفظ')),
         ],
       ),
     );
   }
 
-  // دوالك الأصلية (ما لمستها)
-  void _showChangePasswordDialog() { /* كودك */ }
-  void _showNotificationsDialog() { /* كودك */ }
-  void _showLanguageDialog() { /* كودك */ }
-  void _showHelpCenter() { /* كودك */ }
-  void _showAboutMersal() { /* كودك */ }
+  void _showChangePasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('تغيير كلمة المرور', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('أدخل الكود المكون من 4 أرقام الذي أرسلناه إلى بريدك الإلكتروني', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
+            const SizedBox(height: 20),
+            TextField(keyboardType: TextInputType.number, textAlign: TextAlign.center, maxLength: 4, decoration: InputDecoration(hintText: '0 0 0 0', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم التحقق من الكود بنجاح'))); }, child: const Text('تحقق')),
+        ],
+      ),
+    );
+  }
+
+  void _showNotificationsDialog() {
+    bool pushNotify = true;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إدارة التنبيهات', textAlign: TextAlign.center),
+          content: SwitchListTile(title: const Text('تنبيهات التطبيق'), value: pushNotify, activeColor: Colors.purple, onChanged: (value) => setDialogState(() => pushNotify = value)),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('تم'))],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageDialog() {
+    showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (context) => Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(title: const Text('العربية', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'العربية'); Navigator.pop(context); }),
+      const Divider(),
+      ListTile(title: const Text('English', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'English'); Navigator.pop(context); }),
+    ]));
+  }
+
+  void _showHelpCenter() {
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('مركز المساعدة'), content: const Text('لأي استفسار تواصل معنا:\nEmail: support@mersal.com\nTel: 92000000'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))]));
+  }
+
+  void _showAboutMersal() {
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('عن مرسال'), content: const Text('تطبيق مرسال هو تطبيق ذكي يساعد على تنظيم الاجتماعات وتتبع وصول المشاركين ومعرفة وقت الوصول المتوقع باستخدام الموقع والتنبيهات الذكية لتحسين التنسيق بين المستخدمين.',), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('شكراً'))]));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +155,6 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             const SizedBox(height: 10),
-            // لوجو مرسال حقك
             Center(child: Image.asset('assets/images/logo.png', height: 80, errorBuilder: (c, e, s) => const Icon(Icons.campaign, size: 80, color: Colors.purple))),
             const SizedBox(height: 30),
             Container(
@@ -135,10 +172,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                   const SizedBox(width: 15),
-                  
-                  // ✅ 3. ربط الصورة بالدالة السهلة (لما تضغطين تفتح القائمة)
+                  // ✅ ربط الصورة بـ _showAvatarPicker
                   GestureDetector(
-                    onTap: _showAvatarPicker, 
+                    onTap: _showAvatarPicker,
                     child: CircleAvatar(
                       radius: 35, 
                       backgroundImage: AssetImage(selectedAvatar),
@@ -175,7 +211,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // دوالك المساعدة (نفس ما هي بالضبط)
+  // الدوال المساعدة الأصلية حقتك
   Widget _buildSectionHeader(String title) { return Container(width: double.infinity, padding: const EdgeInsets.only(bottom: 10), child: Text(title, textAlign: TextAlign.right, style: const TextStyle(color: Colors.grey))); }
   Widget _buildSettingsBox(List<Widget> children, Color color) { return Container(margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.withOpacity(0.1))), child: Column(children: children)); }
   Widget _buildListTile(IconData icon, String title, VoidCallback? onTap, Color textColor, {String? trailingText, bool isSwitch = false}) {
