@@ -1,225 +1,190 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_application_1/appointment_screen.dart';
-import 'package:flutter_application_1/login_screen.dart';
-import 'package:flutter_application_1/settings_page.dart'; // لاستخدام isGlobalDarkMode
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+//import 'group_meeting_page.dart';
+//import 'settings_page.dart';
+import 'appointment_page.dart';
+
+class AppointmentScreen extends StatefulWidget {
+  const AppointmentScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<AppointmentScreen> createState() => _AppointmentScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _AppointmentScreenState extends State<AppointmentScreen> {
+  // ✅ 1. جعل التاريخ الافتراضي هو "الآن" لحظة فتح التطبيق
+  DateTime selectedDate = DateTime.now(); 
+  bool showGroupOnly = false;
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  // المواعيد الثابتة (للتجربة)
+  final List<dynamic> staticAppointments = [
+    {
+      "title": "موعد طبيب الأسنان",
+      "place": "عيادة الحكمة الحديثة",
+      "time": "02:30 م",
+      "date": DateTime(2025, 12, 25),
+      "isGroup": false,
+    },
+  ];
 
-  bool _obscurePassword = true;
-  bool _isLoading = false;
+  // ✅ 2. دالة اختيار التاريخ مع تحديث الحالة
+  Future<void> pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: Color(0xFFD65A4A)),
+          ),
+          child: child!,
+        );
+      },
+    );
 
-  // ✅ دالة التسجيل مع التحقق من الشروط
-  Future<void> registration() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("تم إنشاء الحساب بنجاح!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AppointmentScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = "حدث خطأ أثناء التسجيل";
-      if (e.code == 'weak-password') {
-        message = "كلمة المرور ضعيفة جداً";
-      } else if (e.code == 'email-already-in-use') {
-        message = "هذا البريد مسجل مسبقاً";
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+      });
     }
   }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  // ✅ التحقق من الاسم: إنجليزي فقط + طول محدد
-  String? _validateName(String? value) {
-    if (value == null || value.isEmpty) return 'الرجاء إدخال الاسم';
-    // RegExp للتأكد من أن الحروف إنجليزية فقط
-    final nameRegex = RegExp(r'^[a-zA-Z\s]+$');
-    if (!nameRegex.hasMatch(value)) return 'الاسم يجب أن يكون باللغة الإنجليزية فقط';
-    if (value.length < 3) return 'الاسم قصير جداً';
-    return null;
-  }
-
-  // ✅ التحقق من البريد: نقطة واحدة فقط قبل النطاق (com/net/etc)
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'الرجاء إدخال البريد الإلكتروني';
-    // RegExp يضمن وجود نص @ نص . ثم حروف النطاق بدون نقاط مكررة قبلها
-    final emailRegex = RegExp(r'^[^@.]+@[^@.]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(value)) return 'صيغة البريد غير صحيحة (مثال: user@mail.com)';
-    return null;
-  }
-
-  // ✅ التحقق من كلمة المرور: 8 خانات على الأقل
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'الرجاء إدخال كلمة المرور';
-    if (value.length < 8) return 'كلمة المرور يجب أن تكون 8 خانات على الأقل';
-    return null;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isDark = isGlobalDarkMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
-    final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: bgColor,
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  // الشعار
-                  Image.asset(
-                    'assets/images/Mersalblack.png', // تأكدي من المسار الصحيح
-                    height: 100,
-                    color: isDark ? Colors.white : null,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.campaign, size: 80, color: Colors.purple),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'إنشاء حساب جديد',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: textColor),
-                  ),
-                  const SizedBox(height: 30),
+    // ✅ 3. الحل الجوهري: تكوين نص التاريخ داخل الـ Build لضمان التحديث
+    // نستخدم padLeft لضمان صيغة 01, 02 الخ لتطابق الفايربيس تماماً
+    String formattedDate = 
+        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
-                  // حقل الاسم
-                  TextFormField(
-                    controller: _nameController,
-                    style: TextStyle(color: textColor),
-                    maxLength: 30, // ✅ تحديد طول معين (30 حرف)
-                    inputFormatters: [
-                      // ✅ منع كتابة أي شيء غير الحروف الإنجليزية والمسافات
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'الاسم الكامل (English)',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    validator: _validateName,
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        title: const Text("مرسال", style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.calendar_month), onPressed: pickDate),
+          IconButton(
+            icon: Icon(Icons.groups, color: showGroupOnly ? Colors.red : null),
+            onPressed: () => setState(() => showGroupOnly = !showGroupOnly),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFFD65A4A),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentPage())).then((_) => setState(() {})),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: Column(
+        children: [
+          // ✅ عرض التاريخ المختار في أعلى الصفحة
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("مواعيدي", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD65A4A).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(height: 10),
-
-                  // حقل البريد
-                  TextFormField(
-                    controller: _emailController,
-                    style: TextStyle(color: textColor),
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'البريد الإلكتروني',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    validator: _validateEmail,
+                  child: Text(
+                    "اليوم: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                    style: const TextStyle(color: Color(0xFFD65A4A), fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 16),
-
-                  // حقل كلمة المرور
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: 'كلمة المرور (8 خانات فأكثر)',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: _validatePassword,
-                  ),
-                  const SizedBox(height: 32),
-
-                  // زر التسجيل
-                  _isLoading
-                      ? const CircularProgressIndicator(color: Color(0xFFD65A4A))
-                      : ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD65A4A),
-                            minimumSize: const Size(double.infinity, 55),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: registration,
-                          child: const Text(
-                            'تسجيل',
-                            style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                  const SizedBox(height: 20),
-
-                  // لتسجيل الدخول
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('لديك حساب بالفعل؟ ', style: TextStyle(color: textColor)),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'تسجيل الدخول',
-                          style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
+
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              // ✅ 4. هذا الاستعلام سيعيد تشغيل نفسه فوراً عند تغير formattedDate
+              stream: FirebaseFirestore.instance
+                  .collection('appointments')
+                  .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                  .where('date', isEqualTo: formattedDate) 
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                List<Widget> listItems = [];
+
+                // أ- إضافة المواعيد من Firebase
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  for (var doc in snapshot.data!.docs) {
+                    var data = doc.data() as Map<String, dynamic>;
+                    if (showGroupOnly && data['isGroup'] != true) continue;
+                    
+                    listItems.add(_buildCard(data, listItems.isEmpty, isDark));
+                  }
+                }
+
+                // ب- إضافة المواعيد الثابتة (إذا طابق التاريخ)
+                for (var app in staticAppointments) {
+                  DateTime appDate = app['date'];
+                  if (appDate.year == selectedDate.year &&
+                      appDate.month == selectedDate.month &&
+                      appDate.day == selectedDate.day) {
+                    if (showGroupOnly && app['isGroup'] != true) continue;
+                    listItems.add(_buildCard(app, listItems.isEmpty, isDark));
+                  }
+                }
+
+                if (listItems.isEmpty) {
+                  return Center(
+                    child: Text("لا توجد مواعيد بتاريخ $formattedDate"),
+                  );
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: listItems,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // دالة بناء الكرت الموحدة
+  Widget _buildCard(Map<String, dynamic> data, bool isFirst, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isFirst ? null : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+        gradient: isFirst ? const LinearGradient(colors: [Color(0xFFF857A6), Color(0xFFFF5858)]) : null,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(data['title'] ?? '', style: TextStyle(color: isFirst ? Colors.white : null, fontWeight: FontWeight.bold)),
+              Text(data['location'] ?? data['place'] ?? '', style: TextStyle(color: isFirst ? Colors.white70 : Colors.grey)),
+            ],
+          ),
+          Text(data['time'] ?? '', style: TextStyle(color: isFirst ? Colors.white : Colors.red, fontWeight: FontWeight.bold, fontSize: 18)),
+        ],
       ),
     );
   }
 }
-
