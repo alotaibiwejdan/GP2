@@ -18,8 +18,9 @@ class _AppointmentPageState extends State<AppointmentPage> {
   final TextEditingController _participantsController = TextEditingController();
 
   bool isSwitched = true;
-  String? selectedReminder; // خليناه null عشان ما يكون فيه قيمة افتراضية
+  String? selectedReminder;
 
+  // ✅ تعديل دالة اختيار التاريخ لضمان صيغة (01, 02...)
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -27,7 +28,13 @@ class _AppointmentPageState extends State<AppointmentPage> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _dateController.text = "${picked.year}-${picked.month}-${picked.day}");
+    if (picked != null) {
+      setState(() {
+        // استخدام padLeft لضمان أن اليوم والشهر دائماً خانتين (مثل 04 بدل 4)
+        String formattedDate = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        _dateController.text = formattedDate;
+      });
+    }
   }
 
   Future<void> _selectTime() async {
@@ -36,8 +43,8 @@ class _AppointmentPageState extends State<AppointmentPage> {
   }
 
   Future<void> _saveAppointment() async {
-    if (_titleController.text.isEmpty || _locationController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("الرجاء إكمال البيانات الأساسية")));
+    if (_titleController.text.isEmpty || _locationController.text.isEmpty || _dateController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("الرجاء إكمال البيانات الأساسية والتاريخ")));
       return;
     }
     try {
@@ -47,7 +54,7 @@ class _AppointmentPageState extends State<AppointmentPage> {
         'title': _titleController.text,
         'location': _locationController.text,
         'time': _timeController.text,
-        'date': _dateController.text,
+        'date': _dateController.text, // سيتم حفظه الآن بصيغة YYYY-MM-DD الصحيحة
         'notes': _notesController.text,
         'participants': _participantsController.text, 
         'smartNotifications': isSwitched,
@@ -57,9 +64,9 @@ class _AppointmentPageState extends State<AppointmentPage> {
         'isGroup': _participantsController.text.isNotEmpty, 
       });
       
-      Navigator.pop(context);
+      Navigator.pop(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم الحفظ بنجاح! ✅")));
-      Navigator.pop(context);
+      Navigator.pop(context); // العودة لصفحة المواعيد
     } catch (e) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("خطأ: $e")));
@@ -92,16 +99,15 @@ class _AppointmentPageState extends State<AppointmentPage> {
               
               const SizedBox(height: 20),
               _buildLabel("الموقع", Icons.location_on),
-              TextField(controller: _locationController, textAlign: TextAlign.right, decoration: _inputStyle("طريق الملك عبدالله، الرياض", Icons.map)),
+              TextField(controller: _locationController, textAlign: TextAlign.right, decoration: _inputStyle("مثل: جامعة الملك سعود", Icons.map)),
 
               const SizedBox(height: 20),
-              // حقل إضافة المشاركين مع أيقونة الزائد (اختياري)
               _buildLabel("إضافة مشاركين (اختياري)", Icons.person_add_alt_1),
               TextField(
                 controller: _participantsController,
                 textAlign: TextAlign.right,
                 decoration: _inputStyle("اضغط لإضافة أشخاص", Icons.add_circle_outline_rounded).copyWith(
-                  suffixIcon: const Icon(Icons.add, color: Color(0xFFF857A6)), // أيقونة الزائد
+                  suffixIcon: const Icon(Icons.add, color: Color(0xFFF857A6)),
                 ),
               ),
 
@@ -121,7 +127,8 @@ class _AppointmentPageState extends State<AppointmentPage> {
                     child: Column(
                       children: [
                         _buildLabel("التاريخ", Icons.date_range),
-                        TextField(controller: _dateController, readOnly: true, onTap: _selectDate, textAlign: TextAlign.right, decoration: _inputStyle("2024-10-20", Icons.today)),
+                        // ✅ تم تحديث التلميح (Hint) ليكون أكثر دقة
+                        TextField(controller: _dateController, readOnly: true, onTap: _selectDate, textAlign: TextAlign.right, decoration: _inputStyle("YYYY-MM-DD", Icons.today)),
                       ],
                     ),
                   ),
@@ -129,7 +136,6 @@ class _AppointmentPageState extends State<AppointmentPage> {
               ),
 
               const SizedBox(height: 25),
-              // قسم التنبيهات
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(15)),
@@ -146,7 +152,7 @@ class _AppointmentPageState extends State<AppointmentPage> {
                       DropdownButtonFormField<String>(
                         isExpanded: true,
                         value: selectedReminder,
-                        hint: const Text("التذكير قبل الموعد بـ"), // النص اللي طلبتيه
+                        hint: const Text("التذكير قبل الموعد بـ"),
                         decoration: _inputStyle("", Icons.alarm),
                         items: ['15 دقيقة', '30 دقيقة', 'ساعة واحدة', 'يوم واحد'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                         onChanged: (v) => setState(() => selectedReminder = v),
@@ -160,7 +166,6 @@ class _AppointmentPageState extends State<AppointmentPage> {
               TextField(controller: _notesController, maxLines: 2, textAlign: TextAlign.right, decoration: _inputStyle("أضف ملاحظاتك هنا...", Icons.notes)),
 
               const SizedBox(height: 30),
-              // أزرار التحكم
               Row(
                 children: [
                   Expanded(
