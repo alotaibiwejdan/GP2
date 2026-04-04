@@ -6,19 +6,39 @@ import 'settings_page.dart';
 import 'appointment_page.dart';
 
 class Appointment {
+  final String id;
   final String title;
   final String place;
   final String time;
   final DateTime date;
   final bool isGroup;
+  final String notes;
+  final bool smartNotifications;
 
   Appointment({
+    required this.id,
     required this.title,
     required this.place,
     required this.time,
     required this.date,
     this.isGroup = false,
+    this.notes = '',
+    this.smartNotifications = false,
   });
+
+  factory Appointment.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Appointment(
+      id: doc.id,
+      title: data['title'] ?? '',
+      place: data['location'] ?? '',
+      time: data['time'] ?? '',
+      date: DateTime.parse(data['date'] ?? DateTime.now().toIso8601String()),
+      isGroup: data['isGroup'] ?? false,
+      notes: data['notes'] ?? '',
+      smartNotifications: data['smartNotifications'] ?? false,
+    );
+  }
 }
 
 class AppointmentScreen extends StatefulWidget {
@@ -29,30 +49,25 @@ class AppointmentScreen extends StatefulWidget {
 }
 
 class _AppointmentScreenState extends State<AppointmentScreen> {
-  // التاريخ الافتراضي كما كان في كودك
-  DateTime selectedDate = DateTime(2025, 12, 25); 
+  DateTime selectedDate = DateTime.now();
   bool showGroupOnly = false;
 
-  // مواعيدك الأصلية اللي ما نستغني عنها
-  final List<Appointment> allAppointments = [
+  final List<Appointment> staticAppointments = [
     Appointment(
+      id: 'static_1',
       title: "موعد طبيب الأسنان",
       place: "عيادة الحكمة الحديثة",
-      time: "02:30",
+      time: "02:30 م",
       date: DateTime(2025, 12, 25),
+      isGroup: false,
     ),
     Appointment(
+      id: 'static_2',
       title: "اجتماع فريق التصميم",
       place: "مكتب رقم 204",
-      time: "10:00",
+      time: "10:00 ص",
       date: DateTime(2025, 12, 25),
       isGroup: true,
-    ),
-    Appointment(
-      title: "ورشة عمل",
-      place: "قاعة الاجتماعات",
-      time: "09:15",
-      date: DateTime(2025, 12, 26),
     ),
   ];
 
@@ -60,26 +75,39 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
-      firstDate: DateTime(2025),
+      firstDate: DateTime.now(),
       lastDate: DateTime(2030),
     );
-
     if (picked != null) {
-      setState(() {
-        selectedDate = picked;
-      });
+      setState(() => selectedDate = picked);
     }
+  }
+
+  Stream<List<Appointment>> _getFirebaseAppointments() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Stream.value([]);
+
+    final formattedDate =
+        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+
+    return FirebaseFirestore.instance
+        .collection('appointments')
+        .where('userId', isEqualTo: user.uid)
+        .where('date', isEqualTo: formattedDate)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Appointment.fromFirestore(doc)).toList());
   }
 
   @override
   Widget build(BuildContext context) {
-    // استدعاء متغيرات الألوان (تأكدي من وجود isGlobalDarkMode في مشروعك)
-    final bgColor = isGlobalDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
-    final cardColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
-    final textColor = isGlobalDarkMode ? Colors.white : Colors.black;
-    final appBarColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final appBarColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
-    String formattedDate = "${selectedDate.year}-${selectedDate.month}-${selectedDate.day}";
+    final formattedDateStr = "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}";
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -87,25 +115,22 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         backgroundColor: appBarColor,
         elevation: 0,
         centerTitle: true,
-        title: Image.asset(
-          'assets/images/logo.png', 
-          height: 40,
-          errorBuilder: (context, error, stackTrace) => const Text("مرسال"),
-        ),
+        title: const Text(
+            "مرسال",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         leading: IconButton(
-          icon: const Icon(Icons.notifications_none),
-          color: textColor,
+          icon: Icon(Icons.notifications_none, color: textColor),
           onPressed: () {},
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
-            color: textColor,
+            icon: Icon(Icons.calendar_today, color: textColor),
             onPressed: pickDate,
           ),
           IconButton(
             icon: Icon(
-              Icons.groups,
+              Icons.group,
               color: showGroupOnly ? const Color(0xFFD65A4A) : textColor,
             ),
             onPressed: () => setState(() => showGroupOnly = !showGroupOnly),
@@ -118,7 +143,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AppointmentPage()),
-          );
+          ).then((_) => setState(() {}));
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -127,23 +152,24 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
         color: appBarColor,
-        child: Container(
+        child: SizedBox(
           height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: Icon(Icons.person_outline, size: 28, color: textColor),
+                icon: const Icon(Icons.person_outline, size: 28),
+                color: textColor,
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const SettingsPage()),
-                  ).then((_) => setState(() {}));
+                  );
                 },
               ),
               IconButton(
-                icon: Icon(Icons.grid_view_rounded, size: 26, color: textColor),
+                icon: const Icon(Icons.grid_view_rounded, size: 26),
+                color: textColor,
                 onPressed: () {},
               ),
             ],
@@ -157,67 +183,93 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("مواعيدي", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor, fontFamily: 'Tajawal')),
-                Text("التاريخ: ${selectedDate.day}-${selectedDate.month}-${selectedDate.year}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                Text(
+                  "مواعيدي",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    fontFamily: 'Tajawal',
+                  ),
+                ),
+                Text(
+                  "التاريخ: $formattedDateStr",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: textColor.withOpacity(0.7),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('appointments')
-                    .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                    .where('date', isEqualTo: formattedDate)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  // 1. تصفية القائمة الثابتة (كودك الأصلي)
-                  final filteredStatic = allAppointments.where((appointment) {
-                    final sameDate = appointment.date.year == selectedDate.year &&
-                        appointment.date.month == selectedDate.month &&
-                        appointment.date.day == selectedDate.day;
-                    final groupFilter = showGroupOnly ? appointment.isGroup : true;
+              child: StreamBuilder<List<Appointment>>(
+                stream: _getFirebaseAppointments(),
+                builder: (context, firebaseSnapshot) {
+                  // ✅ 1. فحص حالة التحميل لمنع الخطأ عند أول تشغيل
+                  if (firebaseSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // ✅ 2. تصفية المواعيد الثابتة
+                  final filteredStatic = staticAppointments.where((app) {
+                    final sameDate = app.date.year == selectedDate.year &&
+                        app.date.month == selectedDate.month &&
+                        app.date.day == selectedDate.day;
+                    final groupFilter = showGroupOnly ? app.isGroup : true;
                     return sameDate && groupFilter;
                   }).toList();
 
-                  // 2. تجميع كل المواعيد (كودك + فايربيس)
-                  List<Widget> combinedWidgets = [];
+                  // ✅ 3. دمج القوائم بأمان (نتأكد أن بيانات Firebase ليست Null)
+                  final List<Appointment> firebaseData = firebaseSnapshot.data ?? [];
+                  final allAppointments = [...filteredStatic, ...firebaseData];
 
-                  // إضافة كودك القديم أولاً
-                  for (var app in filteredStatic) {
-                    combinedWidgets.add(_buildAppointmentItem(
-                      title: app.title,
-                      place: app.place,
-                      time: app.time,
-                      isGroup: app.isGroup,
-                      isFirst: combinedWidgets.isEmpty,
-                      cardColor: cardColor,
-                      textColor: textColor,
-                    ));
+                  if (allAppointments.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 80,
+                            color: textColor.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "لا توجد مواعيد لهذا اليوم",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: textColor.withOpacity(0.6),
+                              fontFamily: 'Tajawal',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "اضغط + لإضافة موعد جديد",
+                            style: TextStyle(
+                              color: textColor.withOpacity(0.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
-                  // إضافة الجديد من الفايربيس
-                  if (snapshot.hasData) {
-                    for (var doc in snapshot.data!.docs) {
-                      var data = doc.data() as Map<String, dynamic>;
-                      combinedWidgets.add(_buildAppointmentItem(
-                        title: data['title'] ?? '',
-                        place: data['location'] ?? '',
-                        time: data['time'] ?? '',
-                        isGroup: data['isGroup'] ?? false,
-                        isFirst: combinedWidgets.isEmpty,
+                  return ListView.separated(
+                    itemCount: allAppointments.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final appointment = allAppointments[index];
+                      final isFirst = index == 0;
+
+                      return _buildAppointmentItem(
+                        appointment: appointment,
+                        isFirst: isFirst,
                         cardColor: cardColor,
                         textColor: textColor,
-                      ));
-                    }
-                  }
-
-                  if (combinedWidgets.isEmpty) {
-                    return Center(child: Text("لا توجد مواعيد لهذا اليوم", style: TextStyle(color: textColor)));
-                  }
-
-                  return ListView(children: combinedWidgets);
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -227,53 +279,102 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
-  // دالة بناء الكرت مع استعادة الروابط (Navigation)
   Widget _buildAppointmentItem({
-    required String title,
-    required String place,
-    required String time,
-    required bool isGroup,
+    required Appointment appointment,
     required bool isFirst,
     required Color cardColor,
     required Color textColor,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () {
-          if (isGroup) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const GroupMeetingPage()));
-          }
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: isFirst ? const LinearGradient(colors: [Color(0xfff857a6), Color(0xffff5858)]) : null,
-            color: isFirst ? null : cardColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: (isGlobalDarkMode || isFirst) ? [] : [BoxShadow(color: Colors.grey.shade300, blurRadius: 8)],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
+    return InkWell(
+      onTap: appointment.isGroup
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GroupMeetingPage()),
+              )
+          : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: isFirst
+              ? const LinearGradient(colors: [Color(0xFFF857A6), Color(0xFFFF5858)])
+              : null,
+          color: isFirst ? null : cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            if (appointment.isGroup)
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.group, color: Colors.green, size: 20),
+              ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: isFirst ? Colors.white : textColor, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Text(place, style: TextStyle(color: isFirst ? Colors.white70 : Colors.grey)),
-                  if (isGroup)
+                  Text(
+                    appointment.title,
+                    style: TextStyle(
+                      color: isFirst ? Colors.white : textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    appointment.place,
+                    style: TextStyle(
+                      color: isFirst ? Colors.white70 : Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (appointment.smartNotifications && !isFirst)
                     Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text("موعد جماعي - اضغط للتفاصيل", 
-                        style: TextStyle(color: isFirst ? Colors.white : Colors.green, fontSize: 12)),
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_active, size: 14, color: Colors.orange),
+                          const SizedBox(width: 4),
+                          Text(
+                            "تنبيه ذكي مفعّل",
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
-              Text(time, style: TextStyle(color: isFirst ? Colors.white : const Color(0xFFD65A4A), fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
+            ),
+            Text(
+              appointment.time,
+              style: TextStyle(
+                color: isFirst ? Colors.white : const Color(0xFFD65A4A),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
