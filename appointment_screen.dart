@@ -1,381 +1,241 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'group_meeting_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/forgot_password_screen.dart';
+import 'appointment_screen.dart';
+import 'register_screen.dart';
 import 'settings_page.dart';
-import 'appointment_page.dart';
 
-class Appointment {
-  final String id;
-  final String title;
-  final String place;
-  final String time;
-  final DateTime date;
-  final bool isGroup;
-  final String notes;
-  final bool smartNotifications;
-
-  Appointment({
-    required this.id,
-    required this.title,
-    required this.place,
-    required this.time,
-    required this.date,
-    this.isGroup = false,
-    this.notes = '',
-    this.smartNotifications = false,
-  });
-
-  factory Appointment.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Appointment(
-      id: doc.id,
-      title: data['title'] ?? '',
-      place: data['location'] ?? '',
-      time: data['time'] ?? '',
-      date: DateTime.parse(data['date'] ?? DateTime.now().toIso8601String()),
-      isGroup: data['isGroup'] ?? false,
-      notes: data['notes'] ?? '',
-      smartNotifications: data['smartNotifications'] ?? false,
-    );
-  }
-}
-
-class AppointmentScreen extends StatefulWidget {
-  const AppointmentScreen({super.key});
+// حولناه لـ StatefulWidget عشان نقدر نستخدم الـ Controllers
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<AppointmentScreen> createState() => _AppointmentScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _AppointmentScreenState extends State<AppointmentScreen> {
-  DateTime selectedDate = DateTime.now();
-  bool showGroupOnly = false;
+class _LoginScreenState extends State<LoginScreen> {
+  // 1. تعريف المتحكمات لقراءة الإيميل والباسورد
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  final List<Appointment> staticAppointments = [
-    Appointment(
-      id: 'static_1',
-      title: "موعد طبيب الأسنان",
-      place: "عيادة الحكمة الحديثة",
-      time: "02:30 م",
-      date: DateTime(2025, 12, 25),
-      isGroup: false,
-    ),
-    Appointment(
-      id: 'static_2',
-      title: "اجتماع فريق التصميم",
-      place: "مكتب رقم 204",
-      time: "10:00 ص",
-      date: DateTime(2025, 12, 25),
-      isGroup: true,
-    ),
-  ];
-
-  Future<void> pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      setState(() => selectedDate = picked);
+  // دالة تسجيل الدخول
+  Future<void> _signIn() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      
+      // إذا نجح الدخول، ننتقل لصفحة المواعيد
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AppointmentScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = "حدث خطأ ما";
+      
+      // التعديل هنا: أضفنا الأكواد الجديدة اللي صار يرسلها فايربيس
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        message = "المستخدم غير موجود";
+      } 
+      else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = "كلمة المرور غير صحيحة";
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
-  }
-
-  Stream<List<Appointment>> _getFirebaseAppointments() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return Stream.value([]);
-
-    final formattedDate =
-        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-
-    return FirebaseFirestore.instance
-        .collection('appointments')
-        .where('userId', isEqualTo: user.uid)
-        .where('date', isEqualTo: formattedDate)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Appointment.fromFirestore(doc)).toList());
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
-    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final appBarColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isGlobalDarkMode ? Colors.white : Colors.black;
+    final bgColor = isGlobalDarkMode ? const Color(0xFF121212) : Colors.white;
+    final inputFillColor = isGlobalDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
-    final formattedDateStr = "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}";
-
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: appBarColor,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-            "مرسال",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        leading: IconButton(
-          icon: Icon(Icons.notifications_none, color: textColor),
-          onPressed: () {},
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.calendar_today, color: textColor),
-            onPressed: pickDate,
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.group,
-              color: showGroupOnly ? const Color(0xFFD65A4A) : textColor,
-            ),
-            onPressed: () => setState(() => showGroupOnly = !showGroupOnly),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFFD65A4A),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AppointmentPage()),
-          ).then((_) => setState(() {}));
-        },
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: appBarColor,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.person_outline, size: 28),
-                color: textColor,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SettingsPage()),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.grid_view_rounded, size: 26),
-                color: textColor,
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(height: 20),
+                Center(
+                  child: Image.asset(
+                    'assets/images/Mersalblack.png',
+                    height: 90,
+                    ///color: isGlobalDarkMode ? Colors.white : null,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.campaign, size: 80, color: Colors.purple);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Text(
-                  "مواعيدي",
+                  'سجل الدخول لمتابعة مواعيدك',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                     fontFamily: 'Tajawal',
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                Text(
-                  "التاريخ: $formattedDateStr",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: textColor.withOpacity(0.7),
+                const SizedBox(height: 30),
+
+                // حقل البريد الإلكتروني (أضفنا الـ controller)
+                _buildTextField(
+                  controller: _emailController,
+                  label: 'البريد الإلكتروني',
+                  hint: 'أدخل بريدك الإلكتروني',
+                  textColor: textColor,
+                  fillColor: inputFillColor,
+                ),
+                
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                      );
+                    },
+                    child: const Text(
+                      'نسيت كلمة المرور؟',
+                      style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold),
+                    ),
                   ),
+                ),
+
+                // حقل كلمة المرور (أضفنا الـ controller)
+                _buildTextField(
+                  controller: _passwordController,
+                  label: 'كلمة المرور',
+                  hint: 'أدخل كلمة المرور',
+                  isObscure: true,
+                  textColor: textColor,
+                  fillColor: inputFillColor,
+                ),
+                
+                const SizedBox(height: 25),
+
+                // زر تسجيل الدخول (نادينا دالة الـ _signIn)
+                ElevatedButton(
+onPressed: () {
+  _signIn();
+},                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD65A4A),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('تسجيل الدخول', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text('أو سجل الدخول باستخدام', style: TextStyle(color: textColor, fontSize: 12)),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                _buildSocialButton(
+                  label: 'Google',
+                  iconPath: 'assets/images/Googel_Logo.png',
+                  onPressed: () {},
+                  isDark: isGlobalDarkMode,
+                ),
+                const SizedBox(height: 10),
+                _buildSocialButton(
+                  label: 'Apple',
+                  iconData: Icons.apple,
+                  onPressed: () {},
+                  isDark: isGlobalDarkMode,
+                  isApple: true,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('ليس لديك حساب؟', style: TextStyle(color: textColor)),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+                      },
+                      child: const Text('أنشئ حسابًا جديدًا', style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: StreamBuilder<List<Appointment>>(
-                stream: _getFirebaseAppointments(),
-                builder: (context, firebaseSnapshot) {
-                  // ✅ 1. فحص حالة التحميل لمنع الخطأ عند أول تشغيل
-                  if (firebaseSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  // ✅ 2. تصفية المواعيد الثابتة
-                  final filteredStatic = staticAppointments.where((app) {
-                    final sameDate = app.date.year == selectedDate.year &&
-                        app.date.month == selectedDate.month &&
-                        app.date.day == selectedDate.day;
-                    final groupFilter = showGroupOnly ? app.isGroup : true;
-                    return sameDate && groupFilter;
-                  }).toList();
-
-                  // ✅ 3. دمج القوائم بأمان (نتأكد أن بيانات Firebase ليست Null)
-                  final List<Appointment> firebaseData = firebaseSnapshot.data ?? [];
-                  final allAppointments = [...filteredStatic, ...firebaseData];
-
-                  if (allAppointments.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            size: 80,
-                            color: textColor.withOpacity(0.3),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "لا توجد مواعيد لهذا اليوم",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: textColor.withOpacity(0.6),
-                              fontFamily: 'Tajawal',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "اضغط + لإضافة موعد جديد",
-                            style: TextStyle(
-                              color: textColor.withOpacity(0.4),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    itemCount: allAppointments.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final appointment = allAppointments[index];
-                      final isFirst = index == 0;
-
-                      return _buildAppointmentItem(
-                        appointment: appointment,
-                        isFirst: isFirst,
-                        cardColor: cardColor,
-                        textColor: textColor,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAppointmentItem({
-    required Appointment appointment,
-    required bool isFirst,
-    required Color cardColor,
-    required Color textColor,
+  // عدلنا الدالة المساعدة لاستقبال الـ controller
+  Widget _buildTextField({
+    required TextEditingController controller, 
+    required String label, 
+    required String hint, 
+    bool isObscure = false, 
+    required Color textColor, 
+    required Color fillColor
   }) {
-    return InkWell(
-      onTap: appointment.isGroup
-          ? () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const GroupMeetingPage()),
-              )
-          : null,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: isFirst
-              ? const LinearGradient(colors: [Color(0xFFF857A6), Color(0xFFFF5858)])
-              : null,
-          color: isFirst ? null : cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return TextField(
+      controller: controller,
+      obscureText: isObscure,
+      style: TextStyle(color: textColor),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.grey),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+        filled: true,
+        fillColor: fillColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildSocialButton({required String label, String? iconPath, IconData? iconData, required VoidCallback onPressed, required bool isDark, bool isApple = false}) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isApple ? (isDark ? Colors.white : Colors.black) : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+        foregroundColor: isApple ? (isDark ? Colors.black : Colors.white) : (isDark ? Colors.white : Colors.black),
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: isDark ? Colors.transparent : Colors.grey.shade300),
         ),
-        child: Row(
-          children: [
-            if (appointment.isGroup)
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.group, color: Colors.green, size: 20),
-              ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    appointment.title,
-                    style: TextStyle(
-                      color: isFirst ? Colors.white : textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    appointment.place,
-                    style: TextStyle(
-                      color: isFirst ? Colors.white70 : Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (appointment.smartNotifications && !isFirst)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.notifications_active, size: 14, color: Colors.orange),
-                          const SizedBox(width: 4),
-                          Text(
-                            "تنبيه ذكي مفعّل",
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Text(
-              appointment.time,
-              style: TextStyle(
-                color: isFirst ? Colors.white : const Color(0xFFD65A4A),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (iconPath != null) 
+            Image.asset(iconPath, height: 20, errorBuilder: (c, e, s) => const Icon(Icons.g_mobiledata, size: 30))
+          else 
+            Icon(iconData, size: 24),
+          const SizedBox(width: 10),
+          Text('تسجيل الدخول باستخدام $label'),
+        ],
       ),
     );
   }
