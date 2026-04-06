@@ -121,11 +121,27 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showLanguageDialog() {
-    showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (context) => Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(title: const Text('العربية', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'العربية'); Navigator.pop(context); }),
-      const Divider(),
-      ListTile(title: const Text('English', textAlign: TextAlign.center), onTap: () { setState(() => currentLanguage = 'English'); Navigator.pop(context); }),
-    ]));
+    showModalBottomSheet(
+      context: context, 
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), 
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min, 
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(15.0),
+            child: Text("اختر اللغة", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+          ListTile(
+            title: const Text('العربية', textAlign: TextAlign.center, style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold)), 
+            onTap: () { 
+              setState(() => currentLanguage = 'العربية'); 
+              Navigator.pop(context); 
+            }
+          ),
+          const SizedBox(height: 10),
+        ]
+      )
+    );
   }
 
   void _showHelpCenter() {
