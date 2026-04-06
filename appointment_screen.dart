@@ -77,7 +77,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           onPressed: () {},
         ),
         title: Image.asset(
-          'assets/images/logo.png', // ✅ تم تصحيح المسار هنا (حذفت assets المكررة)
+          'assets/images/.png', 
           height: 40,
           errorBuilder: (context, error, stackTrace) => const Text("مرسال", 
             style: TextStyle(color: Color(0xFFD65A4A), fontWeight: FontWeight.bold)),
@@ -147,14 +147,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               builder: (context, snapshot) {
                 List<Widget> listItems = [];
 
+                // 1. معالجة بيانات فايربيس (الديناميكية)
                 if (snapshot.hasData) {
                   for (var doc in snapshot.data!.docs) {
                     var data = doc.data() as Map<String, dynamic>;
+                    data['id'] = doc.id; // حفظ الـ ID الحقيقي للربط
                     if (showGroupOnly && data['isGroup'] != true) continue;
                     listItems.add(_buildCard(data, listItems.isEmpty, isDark));
                   }
                 }
 
+                // 2. معالجة البيانات الثابتة (الستاتيك)
                 for (var app in staticAppointments) {
                    DateTime appDate = app['date'];
                    if (appDate.year == selectedDate.year && 
@@ -181,19 +184,28 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   Widget _buildCard(Map<String, dynamic> data, bool isFirst, bool isDark) {
     bool isGroup = data['isGroup'] ?? false;
+    String? appointmentId = data['id']; // نجيب الـ ID سواء كان ستاتيك أو فايربيس
 
     return GestureDetector(
       onTap: () {
         if (isGroup) {
-          Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => const GroupMeetingPage())
-          );
+          // إذا كان الموعد ستاتيك (1 أو 2)، نرسل نصاً فارغاً ليعرض التصميم الثابت
+          if (appointmentId == "1" || appointmentId == "2" || appointmentId == null) {
+            Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => const GroupMeetingPage(appointmentId: ""))
+            );
+          } else {
+            // إذا كان موعداً جديداً، نرسل الـ ID ليعرض المشاركين الجدد من فايربيس
+            Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => GroupMeetingPage(appointmentId: appointmentId))
+            );
+          }
         } else {
-          // ✅ شلت كلمة const من هنا لأن الصفحة صارت StatelessWidget أو عشان تتفادي خطأ الـ Reload
           Navigator.push(
             context, 
-            MaterialPageRoute(builder: (context) => AppointmentDetailsPage())
+            MaterialPageRoute(builder: (context) => const AppointmentDetailsPage())
           );
         }
       },
@@ -222,7 +234,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     )
                   ),
                   Text(
-                    data['place'] ?? '', 
+                    data['place'] ?? data['location'] ?? '', 
                     style: TextStyle(color: isFirst ? Colors.white70 : Colors.grey, fontSize: 14)
                   ),
                   if (isGroup) ...[
