@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ أضفنا استيراد الفايربيس
 import 'package:flutter_application_1/appointment_screen.dart';
-//import 'package:flutter_application_1/login_screen.dart';
-import 'package:flutter_application_1/settings_page.dart'; // لاستخدام isGlobalDarkMode
+import 'package:flutter_application_1/settings_page.dart'; 
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -23,7 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // ✅ دالة التسجيل مع التحقق من الشروط
+  // ✅ دالة التسجيل المحدثة لتربط مع Firestore
   Future<void> registration() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -32,16 +31,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // 1. إنشاء الحساب في Authentication
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // 2. 🔥 إضافة بيانات المستخدم في Firestore كولكشن 'users'
+      // نستخدم الـ UID الخاص بالمستخدم كاسم للوثيقة لسهولة الوصول مستقبلاً
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim().toLowerCase(), // نخزنه حروف صغيرة للبحث
+        'createdAt': FieldValue.serverTimestamp(), // تاريخ إنشاء الحساب
+      });
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("تم إنشاء الحساب بنجاح!"),
+          content: Text("تم إنشاء الحساب وحفظ البيانات بنجاح! ✅"),
           backgroundColor: Colors.green,
         ),
       );
@@ -60,6 +69,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
+    } catch (e) {
+      // لأي أخطاء أخرى مثل مشاكل الشبكة أو الفايربيس
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("خطأ: $e"), backgroundColor: Colors.red),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -73,26 +87,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // ✅ التحقق من الاسم: إنجليزي فقط + طول محدد
+  // ✅ التحقق من الاسم: إنجليزي فقط
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) return 'الرجاء إدخال الاسم';
-    // RegExp للتأكد من أن الحروف إنجليزية فقط
     final nameRegex = RegExp(r'^[a-zA-Z\s]+$');
     if (!nameRegex.hasMatch(value)) return 'الاسم يجب أن يكون باللغة الإنجليزية فقط';
     if (value.length < 3) return 'الاسم قصير جداً';
     return null;
   }
 
-  // ✅ التحقق من البريد: نقطة واحدة فقط قبل النطاق (com/net/etc)
+  // ✅ التحقق من البريد
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) return 'الرجاء إدخال البريد الإلكتروني';
-    // RegExp يضمن وجود نص @ نص . ثم حروف النطاق بدون نقاط مكررة قبلها
     final emailRegex = RegExp(r'^[^@.]+@[^@.]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(value)) return 'صيغة البريد غير صحيحة (مثال: user@mail.com)';
+    if (!emailRegex.hasMatch(value)) return 'صيغة البريد غير صحيحة';
     return null;
   }
 
-  // ✅ التحقق من كلمة المرور: 8 خانات على الأقل
+  // ✅ التحقق من كلمة المرور
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'الرجاء إدخال كلمة المرور';
     if (value.length < 8) return 'كلمة المرور يجب أن تكون 8 خانات على الأقل';
@@ -118,9 +130,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(height: 40),
-                  // الشعار
                   Image.asset(
-                    'assets/images/Mersalblack.png', // تأكدي من المسار الصحيح
+                    'assets/images/Mersalblack.png', 
                     height: 100,
                     color: isDark ? Colors.white : null,
                     errorBuilder: (context, error, stackTrace) =>
@@ -133,13 +144,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // حقل الاسم
                   TextFormField(
                     controller: _nameController,
                     style: TextStyle(color: textColor),
-                    maxLength: 30, // ✅ تحديد طول معين (30 حرف)
+                    maxLength: 30,
                     inputFormatters: [
-                      // ✅ منع كتابة أي شيء غير الحروف الإنجليزية والمسافات
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                     ],
                     decoration: InputDecoration(
@@ -151,7 +160,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // حقل البريد
                   TextFormField(
                     controller: _emailController,
                     style: TextStyle(color: textColor),
@@ -165,7 +173,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // حقل كلمة المرور
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -183,7 +190,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // زر التسجيل
                   _isLoading
                       ? const CircularProgressIndicator(color: Color(0xFFD65A4A))
                       : ElevatedButton(
@@ -200,7 +206,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                   const SizedBox(height: 20),
 
-                  // رابط العودة لتسجيل الدخول
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
