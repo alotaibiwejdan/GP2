@@ -16,6 +16,10 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
   cloud_firestore: ^5.0.2
+  image_picker: ^1.0.7
+  image_picker_for_web: ^3.0.1 # هذي للويب
+  osm_nominatim: ^0.2.0  # بديل مجاني للويب يحول النص لإحداثيات
+  geolocator: ^11.0.0    # وهذا أيضاً للموقع الحالي
   
 
 dev_dependencies:
@@ -27,7 +31,5 @@ flutter:
   uses-material-design: true  # المكان الصح لهذا السطر هنا!
 
   assets:
-    - assets/images/logo.png
-    - assets/images/user.png
-    - assets/images/map.png
+    - assets/images/
     - assets/MersalImage/
