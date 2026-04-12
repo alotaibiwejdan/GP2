@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // سوي import لهذه المكتبة لتنسيق الوقت والتاريخ
+import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
 
 class EditAppointmentPage extends StatefulWidget {
   final String appointmentId;
-  final String initialTitle;
-  final String initialLocation;
 
   const EditAppointmentPage({
     super.key, 
-    this.appointmentId = "", 
-    this.initialTitle = "", 
-    this.initialLocation = ""
+    required this.appointmentId, 
   });
 
   @override
@@ -23,21 +19,51 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
   final Color mersalPurple = const Color(0xFFBB86FC);
   final Color confirmRed = const Color(0xFFFF5A5A);
 
-  late TextEditingController _titleController;
-  late TextEditingController _locationController;
+  late TextEditingController _titleController = TextEditingController();
+  late TextEditingController _locationController = TextEditingController();
   
-  // متغيرات لحفظ التاريخ والوقت المختارين
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.initialTitle);
-    _locationController = TextEditingController(text: widget.initialLocation);
+    _fetchCurrentData(); // جلب البيانات من السيرفر لضمان المرونة
   }
 
-  // دالة اختيار التاريخ
+  Future<void> _fetchCurrentData() async {
+    try {
+      var doc = await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(widget.appointmentId)
+          .get();
+
+      if (doc.exists) {
+        var data = doc.data()!;
+        setState(() {
+          _titleController.text = data['title'] ?? "";
+          _locationController.text = data['location_name'] ?? ""; // تعديل المسمى هنا
+          
+          // محاولة قراءة التاريخ القديم إذا وجد
+          if (data['date'] != null) {
+            _selectedDate = DateTime.parse(data['date']);
+          }
+          // محاولة قراءة الوقت القديم
+          if (data['time'] != null) {
+            // تحويل النص (مثلاً 3:30 PM) إلى TimeOfDay
+            final format = DateFormat.jm(); 
+            _selectedTime = TimeOfDay.fromDateTime(format.parse(data['time']));
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("خطأ في جلب بيانات التعديل: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _pickDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -48,7 +74,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  // دالة اختيار الوقت
   Future<void> _pickTime() async {
     TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -61,12 +86,13 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     if (widget.appointmentId.isEmpty) return;
 
     try {
+      // نستخدم update لتعديل الحقول المحددة فقط
       await FirebaseFirestore.instance
           .collection('appointments')
           .doc(widget.appointmentId)
           .update({
         'title': _titleController.text,
-        'location': _locationController.text,
+        'location_name': _locationController.text, // المسمى الصحيح
         'date': DateFormat('yyyy-MM-dd').format(_selectedDate),
         'time': _selectedTime.format(context),
       });
@@ -74,7 +100,7 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("تم حفظ التعديلات بنجاح")),
+          const SnackBar(content: Text("تم حفظ التعديلات بنجاح ✅")),
         );
       }
     } catch (e) {
@@ -102,7 +128,9 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () => Navigator.pop(context)),
         ),
-        body: Padding(
+        body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +149,7 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
                           children: [
                         _buildLabel("التاريخ"),
                         _buildSelector(
-                          DateFormat('dd MMMM yyyy').format(_selectedDate), 
+                          DateFormat('yyyy-MM-dd').format(_selectedDate), 
                           Icons.calendar_month, 
                           _pickDate
                         )
@@ -180,7 +208,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     );
   }
 
-  // تعديل الـ Widget ليقبل دالة onTap
   Widget _buildSelector(String text, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
