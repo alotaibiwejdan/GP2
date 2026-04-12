@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:osm_nominatim/osm_nominatim.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:html' as html; 
 
 // تأكدي من وجود هذا الملف في مشروعك
@@ -42,8 +42,9 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
           .doc(widget.appointmentId)
           .get();
 
-      if (doc.exists && doc.data()?['location'] != null) {
-        String actualAddress = doc.data()?['location'];
+      // تم تعديل المسمى هنا من location إلى location_name ليطابق الفايربيس عندك
+      if (doc.exists && doc.data()?['location_name'] != null) {
+        String actualAddress = doc.data()?['location_name'];
         setState(() {
           _addressTitle = actualAddress;
         });
@@ -53,23 +54,43 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
       }
     } catch (e) {
       debugPrint("خطأ في جلب البيانات: $e");
+      setState(() => _addressTitle = "تعذر تحميل العنوان");
     }
   }
 
+  // دالة البحث المحسنة لتجنب مشاكل الويب (CORS)
   Future<void> _updateMapFromAddress(String address) async {
     if (address.isEmpty) return;
     try {
-      final nominatim = Nominatim(userAgent: 'MersalApp');
-      final List<Place> searchResult = await nominatim.searchByName(query: address);
-      if (searchResult.isNotEmpty) {
-        setState(() {
-          _appointmentLocation = LatLng(searchResult.first.lat, searchResult.first.lon);
-          _isMapLoading = false;
-        });
+      final url = Uri.parse('https://nominatim.openstreetmap.org/search?format=jsonv2&q=${Uri.encodeComponent(address)}&limit=1');
+      
+      final response = await http.get(
+        url,
+        headers: {
+          'User-Agent': 'Mersal_App_University_Project',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        if (data.isNotEmpty) {
+          double lat = double.parse(data[0]['lat']);
+          double lon = double.parse(data[0]['lon']);
+          
+          if (mounted) {
+            setState(() {
+              _appointmentLocation = LatLng(lat, lon);
+              _isMapLoading = false;
+            });
+          }
+        } else {
+           setState(() => _isMapLoading = false);
+        }
       }
     } catch (e) {
-      debugPrint("خطأ في البحث: $e");
-      setState(() => _isMapLoading = false);
+      debugPrint("خطأ في تحديث الخريطة: $e");
+      if (mounted) setState(() => _isMapLoading = false);
     }
   }
 
@@ -84,11 +105,8 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
     }
   }
 
-  // الدالة النهائية لفتح الخرائط (تستخدم جافاسكربت للويب لضمان الفتح)
   void _launchGoogleMaps() {
     final String url = "https://www.google.com/maps/search/?api=1&query=${_appointmentLocation.latitude},${_appointmentLocation.longitude}";
-    
-    // محاولة الفتح عن طريق جافاسكربت مباشرة لأنها الأقوى في الويب
     html.window.open(url, '_blank');
   }
 
@@ -116,7 +134,6 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
               _buildDepartureCard(),
               const SizedBox(height: 20),
 
-              // الخريطة مع زر فتح خارجي لضمان اشتغال الرابط
               Stack(
                 children: [
                   SizedBox(
@@ -124,7 +141,7 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(25),
                       child: _isMapLoading
-                          ? const Center(child: CircularProgressIndicator())
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8EAC)))
                           : FlutterMap(
                               options: MapOptions(
                                 initialCenter: _appointmentLocation,
@@ -152,7 +169,6 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
                             ),
                     ),
                   ),
-                  // زر الفتح في خرائط قوقل - هذا اللي بيحل المشكلة غصب
                   Positioned(
                     bottom: 10,
                     left: 10,
@@ -174,7 +190,7 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
 
               _buildMersalTile(
                 icon: Icons.location_on_outlined,
-                content: Text(_addressTitle, style: const TextStyle(fontWeight: FontWeight.w500)),
+                content: Text(_addressTitle, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
               ),
               const SizedBox(height: 15),
               _buildMersalTile(
@@ -198,6 +214,7 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
     );
   }
 
+  // البيلدرز (نفس اللي في كودك بدون تغيير لتعديل الشكل)
   Widget _buildDepartureCard() {
     return Container(
       width: double.infinity,
@@ -232,8 +249,10 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
     return Row(
       children: [
         GestureDetector(
-          onTap: () {
-            // كود الحذف هنا
+          onTap: () async {
+            // كود الحذف
+            await FirebaseFirestore.instance.collection('appointments').doc(widget.appointmentId).delete();
+            Navigator.pop(context);
           },
           child: Container(
             padding: const EdgeInsets.all(12),
@@ -248,8 +267,13 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
         const SizedBox(width: 10),
         Expanded(
           child: GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditAppointmentPage())),
-            child: Container(
+// شلنا كلمة const وأضفنا الـ appointmentId اللي الصفحة محتاجته
+onTap: () => Navigator.push(
+  context, 
+  MaterialPageRoute(
+    builder: (context) => EditAppointmentPage(appointmentId: widget.appointmentId),
+  ),
+),            child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
                 color: Colors.white,
