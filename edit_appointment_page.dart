@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async'; 
 import 'dart:ui' as ui;
 
 class EditAppointmentPage extends StatefulWidget {
@@ -26,12 +29,25 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _isLoading = true;
 
+  // إضافات البحث عن الموقع (Nominatim)
+  List<dynamic> _locationSuggestions = []; 
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
-    _fetchCurrentData(); // جلب البيانات من السيرفر لضمان المرونة
+    _fetchCurrentData();
   }
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _titleController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  // دالة جلب البيانات الحالية من الفايربيس
   Future<void> _fetchCurrentData() async {
     try {
       var doc = await FirebaseFirestore.instance
@@ -43,15 +59,12 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
         var data = doc.data()!;
         setState(() {
           _titleController.text = data['title'] ?? "";
-          _locationController.text = data['location_name'] ?? ""; // تعديل المسمى هنا
+          _locationController.text = data['location_name'] ?? "";
           
-          // محاولة قراءة التاريخ القديم إذا وجد
           if (data['date'] != null) {
             _selectedDate = DateTime.parse(data['date']);
           }
-          // محاولة قراءة الوقت القديم
           if (data['time'] != null) {
-            // تحويل النص (مثلاً 3:30 PM) إلى TimeOfDay
             final format = DateFormat.jm(); 
             _selectedTime = TimeOfDay.fromDateTime(format.parse(data['time']));
           }
@@ -62,6 +75,34 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
       debugPrint("خطأ في جلب بيانات التعديل: $e");
       setState(() => _isLoading = false);
     }
+  }
+
+  // دالة البحث عن الموقع (Autocomplete)
+  void _onLocationChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.length < 3) {
+        setState(() => _locationSuggestions = []);
+        return;
+      }
+
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/search?format=jsonv2&q=${Uri.encodeComponent(query)}&limit=5');
+        final response = await http.get(url, headers: {'User-Agent': 'Mersal_App_Project_V2'});
+
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          if (mounted) {
+            setState(() {
+              _locationSuggestions = data;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("خطأ في جلب المواقع: $e");
+      }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -82,17 +123,17 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
+  // دالة التحديث النهائي في قاعدة البيانات
   Future<void> _updateAppointment() async {
     if (widget.appointmentId.isEmpty) return;
 
     try {
-      // نستخدم update لتعديل الحقول المحددة فقط
       await FirebaseFirestore.instance
           .collection('appointments')
           .doc(widget.appointmentId)
           .update({
         'title': _titleController.text,
-        'location_name': _locationController.text, // المسمى الصحيح
+        'location_name': _locationController.text, 
         'date': DateFormat('yyyy-MM-dd').format(_selectedDate),
         'time': _selectedTime.format(context),
       });
@@ -130,45 +171,94 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
         ),
         body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
-        : Padding(
+        : SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildLabel("اسم الموعد"),
               _buildTextField(controller: _titleController, hint: "اسم الاجتماع", icon: Icons.title),
+              
               const SizedBox(height: 20),
               _buildLabel("الموقع (العنوان)"),
-              _buildTextField(controller: _locationController, hint: "المكان", icon: Icons.location_on_outlined),
+              
+              // حقل الموقع المطور مع البحث
+              TextField(
+                controller: _locationController,
+                textAlign: TextAlign.right,
+                onChanged: _onLocationChanged,
+                decoration: InputDecoration(
+                  hintText: "ابحث عن موقع...",
+                  suffixIcon: Icon(Icons.location_on_outlined, color: mersalPurple),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: Colors.grey.shade200)),
+                ),
+              ),
+
+              // قائمة الاقتراحات
+              if (_locationSuggestions.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _locationSuggestions.length,
+                    itemBuilder: (context, index) {
+                      final place = _locationSuggestions[index];
+                      return ListTile(
+                        title: Text(place['display_name'], style: const TextStyle(fontSize: 12)),
+                        onTap: () {
+                          setState(() {
+                            _locationController.text = place['display_name'];
+                            _locationSuggestions = []; 
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+
               const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         _buildLabel("التاريخ"),
                         _buildSelector(
                           DateFormat('yyyy-MM-dd').format(_selectedDate), 
                           Icons.calendar_month, 
                           _pickDate
                         )
-                      ])),
+                      ],
+                    ),
+                  ),
                   const SizedBox(width: 15),
                   Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         _buildLabel("الوقت"),
                         _buildSelector(
                           _selectedTime.format(context), 
                           Icons.access_time, 
                           _pickTime
                         )
-                      ])),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const Spacer(),
+              const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -188,6 +278,7 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     );
   }
 
+  // --- Widgets مساعدة للواجهة ---
   Widget _buildLabel(String text) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text, style: TextStyle(color: mersalPurple, fontWeight: FontWeight.bold)));
