@@ -79,7 +79,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               
               Center(
                 child: Image.asset(
-                  'assets/Images/Mersalblack.png',
+                  'assets/MersalImage/Mersalblack.png',
                   height: 100,
                 ),
               ),
