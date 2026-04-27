@@ -6,6 +6,9 @@ import 'appointment_details_page.dart';
 import 'settings_page.dart'; 
 import 'notifications_page.dart'; 
 
+// ❌ قمنا بحذف تعريف bool isGlobalDarkMode من هنا لأنه يسبب تعارض (Error)
+// سيتم التعرف عليه تلقائياً إذا كان معرفاً في ملف SettingsPage أو ملف مستقل
+
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key});
 
@@ -16,6 +19,8 @@ class AppointmentScreen extends StatefulWidget {
 class _AppointmentScreenState extends State<AppointmentScreen> {
   DateTime selectedDate = DateTime.now(); 
   bool showGroupOnly = false;
+
+  String? get currentUserEmail => FirebaseAuth.instance.currentUser?.email?.toLowerCase();
 
   void _openAddPage() {
     Navigator.push(
@@ -45,58 +50,52 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ نستخدم المتغير العالمي مباشرة كما كان في كودك السابق
+    bool isDarkMode = isGlobalDarkMode; 
+
     String dbDate = "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
     String displayDate = "${selectedDate.year}-${selectedDate.month}-${selectedDate.day}";
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
-        
-        // --- القسم المحدث: زر الجرس مع التنبيه الأحمر والرقم ---
         leading: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('notifications')
               .where('user_id', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-              .where('is_read', isEqualTo: false) // نجلب فقط غير المقروء
+              .where('is_read', isEqualTo: false)
               .snapshots(),
           builder: (context, snapshot) {
-            int unreadCount = 0;
-            if (snapshot.hasData) {
-              unreadCount = snapshot.data!.docs.length;
-            }
-
+            int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
             return IconButton(
               icon: Badge(
                 label: Text(unreadCount.toString()),
-                isLabelVisible: unreadCount > 0, // تظهر الدائرة فقط إذا فيه إشعارات
+                isLabelVisible: unreadCount > 0,
                 backgroundColor: Colors.red,
-                child: const Icon(Icons.notifications_none, color: Colors.black),
+                child: Icon(Icons.notifications_none, color: isDarkMode ? Colors.white : Colors.black),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NotificationsPage()),
-                );
-              },
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage())),
             );
           },
         ),
-        // --------------------------------------------------
-
-        title: const Text("مرسال", style: TextStyle(color: Color(0xFFD65A4A), fontWeight: FontWeight.bold)),
-        centerTitle: true,
+title: Image.asset(
+          'images/logo.png',
+          height: 60, // يمكنك التحكم في الحجم من هنا
+          fit: BoxFit.contain,
+        ),        centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.filter_list, color: Colors.black), onPressed: pickDate),
+          IconButton(icon: Icon(Icons.filter_list, color: isDarkMode ? Colors.white : Colors.black), onPressed: pickDate),
           IconButton(
-            icon: Icon(Icons.groups_outlined, color: showGroupOnly ? Colors.red : Colors.black),
+            icon: Icon(Icons.groups_outlined, color: showGroupOnly ? Colors.red : (isDarkMode ? Colors.white : Colors.black)),
             onPressed: () => setState(() => showGroupOnly = !showGroupOnly),
           ),
         ],
       ),
       
       bottomNavigationBar: BottomAppBar(
+        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
         child: Padding(
@@ -105,11 +104,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             mainAxisAlignment: MainAxisAlignment.start, 
             children: [
               IconButton(
-                icon: const Icon(Icons.person_outline, size: 30, color: Colors.black),
-                onPressed: () => Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => const SettingsPage())
-                ),
+                icon: Icon(Icons.person_outline, size: 30, color: isDarkMode ? Colors.white : Colors.black),
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                  setState(() {}); 
+                },
               ),
             ],
           ),
@@ -132,7 +131,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("مواعيدي", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  Text("مواعيدي", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black)),
                   Text("التاريخ: $displayDate", style: const TextStyle(color: Colors.grey)),
                 ],
               ),
@@ -141,30 +140,32 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('appointments')
-                    .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                    .where('participants', arrayContains: currentUserEmail)
                     .where('date', isEqualTo: dbDate) 
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
+                  
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(child: Text("لا توجد مواعيد بتاريخ $displayDate"));
+                    return Center(child: Text("لا توجد مواعيد بتاريخ $displayDate", style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black54)));
                   }
                   
                   var docs = snapshot.data!.docs;
+                  
                   if (showGroupOnly) {
                     docs = docs.where((d) => (d.data() as Map)['isGroup'] == true).toList();
                   }
                   
-                  if (docs.isEmpty) return Center(child: Text("لا توجد مواعيد مجموعة لهذا التاريخ"));
+                  if (docs.isEmpty) return Center(child: Text("لا توجد مواعيد مجموعة لهذا التاريخ", style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black54)));
 
                   return ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
                       var data = docs[index].data() as Map<String, dynamic>;
-                      return _buildCard(data, docs[index].id, index == 0);
+                      return _buildCard(data, docs[index].id, index == 0, isDarkMode);
                     },
                   );
                 },
@@ -176,7 +177,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
-  Widget _buildCard(Map<String, dynamic> data, String docId, bool isFirst) {
+  Widget _buildCard(Map<String, dynamic> data, String docId, bool isFirst, bool isDarkMode) {
     return GestureDetector(
       onTap: () => Navigator.push(
         context, 
@@ -186,11 +187,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         margin: const EdgeInsets.only(bottom: 15),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isFirst ? null : Colors.white,
+          color: isFirst ? null : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.white),
           gradient: isFirst ? const LinearGradient(colors: [Color(0xFFF857A6), Color(0xFFFF5858)]) : null,
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
+            BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.05), blurRadius: 10, offset: const Offset(0, 5))
           ]
         ),
         child: Row(
@@ -203,7 +204,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   Text(
                     data['title'] ?? '', 
                     style: TextStyle(
-                      color: isFirst ? Colors.white : Colors.black, 
+                      color: (isFirst || isDarkMode) ? Colors.white : Colors.black, 
                       fontSize: 18, 
                       fontWeight: FontWeight.bold
                     ),
@@ -213,7 +214,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   Text(
                     data['location_name'] ?? '', 
                     style: TextStyle(
-                      color: isFirst ? Colors.white70 : Colors.grey
+                      color: isFirst ? Colors.white70 : (isDarkMode ? Colors.white60 : Colors.grey)
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
