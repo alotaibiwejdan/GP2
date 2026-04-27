@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart'; 
 import 'package:osm_nominatim/osm_nominatim.dart'; 
 import 'package:geolocator/geolocator.dart';      
-import 'package:latlong2/latlong.dart';          
+import 'package:latlong2/latlong.dart';           
 import 'package:flutter/foundation.dart' show kIsWeb; 
-
-// تأكدي من استيراد صفحة التعديل الموجودة في مشروعك
-import 'edit_appointment_page.dart';
 
 class GroupMeetingPage extends StatefulWidget {
   final String appointmentId; 
@@ -20,7 +18,6 @@ class GroupMeetingPage extends StatefulWidget {
 
 class _GroupMeetingPageState extends State<GroupMeetingPage> {
   final TextEditingController _emailController = TextEditingController();
-  
   LatLng _appointmentLocation = const LatLng(24.7136, 46.6753); 
   LatLng? _myLocation;
 
@@ -30,55 +27,35 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
     _determinePosition(); 
   }
 
-  // تحويل العنوان لإحداثيات (تستخدم location_name من الفايربيس)
   Future<void> _updateMapFromAddress(String address) async {
     if (address.isEmpty || address == "جاري التحميل...") return;
     try {
       final nominatim = Nominatim(userAgent: 'MersalApp'); 
       final List<Place> searchResult = await nominatim.searchByName(query: address);
-      
       if (searchResult.isNotEmpty) {
         LatLng newLoc = LatLng(searchResult.first.lat, searchResult.first.lon);
         if (mounted && newLoc.latitude != _appointmentLocation.latitude) {
-          setState(() {
-            _appointmentLocation = newLoc;
-          });
+          setState(() { _appointmentLocation = newLoc; });
         }
       }
-    } catch (e) {
-      debugPrint("خطأ في تحديث الخريطة: $e");
-    }
+    } catch (e) { debugPrint("خطأ في تحديث الخريطة: $e"); }
   }
 
-  // جلب موقع المستخدم (متوافق مع ويب وجوال)
   Future<void> _determinePosition() async {
     try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
       Position position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _myLocation = LatLng(position.latitude, position.longitude);
-      });
-    } catch (e) {
-      debugPrint("لم يتم الحصول على الموقع: $e");
-    }
+      setState(() { _myLocation = LatLng(position.latitude, position.longitude); });
+    } catch (e) { debugPrint("لم يتم الحصول على الموقع: $e"); }
   }
 
-  // فتح الخرائط (رابط عالمي يعمل في المتصفح وتطبيقات الجوال)
   Future<void> _openGoogleMaps() async {
-    final String urlString = kIsWeb 
-        ? "https://www.google.com/maps/search/?api=1&query=${_appointmentLocation.latitude},${_appointmentLocation.longitude}"
-        : "google.navigation:q=${_appointmentLocation.latitude},${_appointmentLocation.longitude}";
-    
+    final String urlString = "https://www.google.com/maps/search/?api=1&query=${_appointmentLocation.latitude},${_appointmentLocation.longitude}";
     final Uri url = Uri.parse(urlString);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
+    if (await canLaunchUrl(url)) { await launchUrl(url, mode: LaunchMode.externalApplication); }
   }
 
   void _addNewPerson() {
+    String? myEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -93,9 +70,14 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              if (_emailController.text.isNotEmpty) {
+              String inputEmail = _emailController.text.trim().toLowerCase();
+              if (inputEmail == myEmail) {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("لا يمكنك إضافة نفسك كمشارك")));
+                 return;
+              }
+              if (inputEmail.isNotEmpty) {
                 await FirebaseFirestore.instance.collection('appointments').doc(widget.appointmentId).update({
-                  'participants': FieldValue.arrayUnion([_emailController.text.trim().toLowerCase()])
+                  'participants': FieldValue.arrayUnion([inputEmail])
                 });
                 _emailController.clear();
                 Navigator.pop(context);
@@ -117,15 +99,9 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
         if (!snapshot.hasData || !snapshot.data!.exists) return const Scaffold(body: Center(child: Text("الموعد غير موجود")));
 
         var data = snapshot.data!.data() as Map<String, dynamic>?;
-
-        // جلب قائمة المشاركين الحقيقية من الداتابيز
-        List<String> participants = [];
-        if (data?['participants'] != null) {
-          participants = List<String>.from(data?['participants']);
-        }
-
-        // استخدام 'location_name' ليطابق قاعدة البيانات عندك
+        List<String> participants = List<String>.from(data?['participants'] ?? []);
         String addr = data?['location_name'] ?? "لا يوجد عنوان";
+        String creatorId = data?['userId'] ?? "";
         _updateMapFromAddress(addr);
 
         return _buildMainUI(
@@ -133,12 +109,16 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
           dateInfo: "${data?['date'] ?? ''} - ${data?['time'] ?? ''}",
           locationInfo: addr,
           participants: participants,
+          creatorId: creatorId,
         );
       },
     );
   }
 
-  Widget _buildMainUI({required String title, required String dateInfo, required String locationInfo, required List<String> participants}) {
+  Widget _buildMainUI({required String title, required String dateInfo, required String locationInfo, required List<String> participants, required String creatorId}) {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    bool isCreator = (creatorId == currentUserId);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -152,7 +132,6 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
         ),
         body: Column(
           children: [
-            // الخريطة
             GestureDetector(
               onTap: _openGoogleMaps,
               child: Container(
@@ -176,7 +155,6 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
                 ),
               ),
             ),
-            // تفاصيل الموعد
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -191,7 +169,6 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
                 ],
               ),
             ),
-            // قائمة المشاركين
             Expanded(
               child: participants.isEmpty 
                 ? const Center(child: Text("لا يوجد مشاركون مضافون"))
@@ -203,7 +180,7 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
             ),
           ],
         ),
-        bottomNavigationBar: _buildBottomActionArea(),
+        bottomNavigationBar: _buildBottomActionArea(isCreator),
       ),
     );
   }
@@ -220,13 +197,15 @@ class _GroupMeetingPageState extends State<GroupMeetingPage> {
     ),
   );
 
-  Widget _buildBottomActionArea() => Padding(
+  Widget _buildBottomActionArea(bool isCreator) => Padding(
     padding: const EdgeInsets.all(20),
     child: Row(
       children: [
-        InkWell(onTap: _addNewPerson, child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF5F6F8), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.person_add_alt_1, color: Color(0xFFC875A8)))),
-        const SizedBox(width: 12),
-        Expanded(child: InkWell(onTap: () {}, child: Container(height: 55, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFC875A8), Color(0xFFF86C5E)]), borderRadius: BorderRadius.circular(30)), child: const Center(child: Text("إرسال تذكير للجميع", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))))),
+        if (isCreator) ...[
+          InkWell(onTap: _addNewPerson, child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF5F6F8), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.person_add_alt_1, color: Color(0xFFC875A8)))),
+          const SizedBox(width: 12),
+        ],
+        Expanded(child: InkWell(onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isCreator ? "تم إرسال تذكير للجميع" : "تم تأكيد الحضور"))), child: Container(height: 55, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFC875A8), Color(0xFFF86C5E)]), borderRadius: BorderRadius.circular(30)), child: Center(child: Text(isCreator ? "إرسال تذكير للجميع" : "تأكيد الحضور", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))))),
       ],
     ),
   );
