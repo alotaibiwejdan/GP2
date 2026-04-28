@@ -142,7 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   const SizedBox(height: 40),
                   Image.asset(
-                    'assets/images/Mersalblack.png', 
+                    'assets/Mersalimage/Mersalblack.png', 
                     height: 100,
                     color: isDark ? Colors.white : null,
                     errorBuilder: (context, error, stackTrace) =>
