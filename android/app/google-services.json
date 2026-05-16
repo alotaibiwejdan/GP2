@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "760561356873",
+    "project_id": "mersal-90cf9",
+    "storage_bucket": "mersal-90cf9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760561356873:android:996ee34cfbbc801e766f98",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "760561356873-7jnh8blfq712pqrhandassoiu114jtem.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_application_1",
+            "certificate_hash": "6c7b2c89247fdbb7d339914568034ad0290f90cd"
+          }
+        },
+        {
+          "client_id": "760561356873-qce556f04aijnj6dtr46ouj45c7o93t9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjvVmhhZvtDLPl4kgm8VHyvPoR1P51uXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "760561356873-qce556f04aijnj6dtr46ouj45c7o93t9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "760561356873-4apupg90eo3a61be19m4i2rglnj2ecm6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flutterApplication1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760561356873:android:0fe737328d9d0e0d766f98",
+        "android_client_info": {
+          "package_name": "com.mersal.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "760561356873-42n6tshjcvtbkbm2vf2rp5shdeuonq05.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mersal.app",
+            "certificate_hash": "6c7b2c89247fdbb7d339914568034ad0290f90cd"
+          }
+        },
+        {
+          "client_id": "760561356873-qce556f04aijnj6dtr46ouj45c7o93t9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjvVmhhZvtDLPl4kgm8VHyvPoR1P51uXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "760561356873-qce556f04aijnj6dtr46ouj45c7o93t9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "760561356873-4apupg90eo3a61be19m4i2rglnj2ecm6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flutterApplication1"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
