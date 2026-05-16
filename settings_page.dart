@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'main.dart';
 
-// المتغير العام للوضع الداكن
 bool isGlobalDarkMode = false;
 
 class SettingsPage extends StatefulWidget {
@@ -15,7 +14,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // --- المتغيرات المشتركة ---
   String currentLanguage = 'العربية';
   late String userName = "مستخدم مرسال";
   late String userEmail = "البريد غير متوفر";
@@ -35,13 +33,10 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadUserData();
   }
 
-  // تحميل بيانات المستخدم من Firebase
-  // تحميل بيانات المستخدم من Firestore
   Future<void> _loadUserData() async {
     currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       try {
-        // جلب الوثيقة الخاصة بالمستخدم من كولكشن users
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser!.uid)
@@ -49,7 +44,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (userDoc.exists && userDoc.data() != null) {
           setState(() {
-            // تأكدي أن الكلمة هنا 'name' كما كتبناها في صفحة التسجيل
             userName = userDoc['name'] ?? "مستخدم مرسال";
             userEmail = currentUser?.email ?? "البريد غير متوفر";
           });
@@ -63,9 +57,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // --- دوال النوافذ المنبثقة (الدمج النظيف) ---
 
-  // 1. إدارة التنبيهات
   void _showNotificationsDialog() {
     showDialog(
       context: context,
@@ -93,7 +85,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 2. تعديل الملف الشخصي (الاسم والإيميل)
   void _showEditProfileDialog() {
     TextEditingController nameEdit = TextEditingController(text: userName);
     TextEditingController emailEdit = TextEditingController(text: userEmail);
@@ -118,7 +109,6 @@ class _SettingsPageState extends State<SettingsPage> {
             TextButton(
               onPressed: () async {
                 try {
-                  // تحديث الاسم في Firebase
                   if (nameEdit.text != userName) {
                     await currentUser?.updateDisplayName(nameEdit.text);
                     await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).set({
@@ -126,7 +116,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     }, SetOptions(merge: true));
                   }
 
-                  // تحديث الإيميل (يتطلب تأكيد من البريد)
                   if (emailEdit.text != currentUser?.email) {
                     await currentUser?.verifyBeforeUpdateEmail(emailEdit.text);
                     if (mounted) {
@@ -148,7 +137,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 3. تغيير كلمة المرور
   void _showChangePasswordDialog() {
     TextEditingController oldPass = TextEditingController();
     TextEditingController newPass = TextEditingController();
@@ -190,7 +178,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 4. اختيار الصورة الشخصية
   void _showAvatarPicker() {
     showModalBottomSheet(
       context: context,
@@ -219,7 +206,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 5. مركز المساعدة وعن مرسال
   void _showHelpCenter() {
     showDialog(
       context: context,
@@ -227,7 +213,7 @@ class _SettingsPageState extends State<SettingsPage> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('مركز المساعدة'),
-          content: const Text('لأي استفسار تواصل معنا:\nEmail: support@mersal.com\nTel: 92000000'),
+          content: const Text('لأي استفسار تواصل معنا:\nEmail:mersal.customerserviece@gmail.com\nTel: 92000000'),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
         ),
       ),
@@ -259,7 +245,6 @@ class _SettingsPageState extends State<SettingsPage> {
               Center(child: Image.asset('assets/images/logo.png', height: 80, errorBuilder: (c, e, s) => const Icon(Icons.campaign, size: 80, color: Colors.purple))),
               const SizedBox(height: 30),
               
-              // بطاقة المستخدم
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(20)),
@@ -295,7 +280,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ], cardColor),
 
               const SizedBox(height: 30),
-              // زر تسجيل الخروج
               TextButton.icon(
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
@@ -312,7 +296,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // --- عناصر واجهة المستخدم المساعدة ---
   Widget _buildSectionHeader(String title) => Container(width: double.infinity, padding: const EdgeInsets.only(bottom: 10, right: 5), child: Text(title, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)));
   
   Widget _buildSettingsBox(List<Widget> children, Color cardColor) => Container(margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(15)), child: Column(children: children));
