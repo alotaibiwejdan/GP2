@@ -113,10 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return 'يجب ألا تقل كلمة المرور عن 8 خانات';
     }
 
-// السطر القديم اللي فيه المشكلة:
-// final passwordRegex = RegExp(r'^(?=.[a-z])(?=.[A-Z])(?=.\d)(?=.?[!@#\$&*~]).{8,}$');
 
-// السطر الجديد الصحيح:
 final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$&*~]).{8,}$');    
     if (!passwordRegex.hasMatch(value)) {
       return 'يجب أن تحتوي كلمة المرور على حرف كبير، حرف صغير، رقم، ورمز خاص';
