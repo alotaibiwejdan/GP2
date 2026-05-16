@@ -100,10 +100,10 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
         int code = wData['current_weather']['weathercode'];
         if (code >= 51 && code <= 67) {
           weatherDelayPercent = 0.25;
-          reason = "الأمطار والزحام 🌧️";
+          reason = "الأمطار والزحام ";
         } else if (code > 67) {
           weatherDelayPercent = 0.50;
-          reason = "ظروف جوية صعبة ⚠️";
+          reason = "ظروف جوية صعبة ";
         }
       }
     } catch (e) {
@@ -133,6 +133,41 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
     }
   }
 
+  Future<void> _sendReminderToBellOnly(List<dynamic> participantEmails) async {
+    String appointmentTitle = widget.appointmentData['title'] ?? 'الموعد';
+    String myName = FirebaseAuth.instance.currentUser?.displayName ?? "منظم الموعد";
+
+    for (String email in participantEmails) {
+      try {
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email.toLowerCase().trim())
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          String targetUserId = userQuery.docs.first.id;
+
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'user_id': targetUserId,
+            'title': 'تذكير بموعد ',
+            'body': 'يُذكرك $myName بحضور موعد "$appointmentTitle" المقرّر اليوم.',
+            'type': 'traffic',
+            'is_read': false,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        debugPrint("خطأ في إرسال التنبيه إلى الجرس للإيميل $email: $e");
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(" تم إرسال التذكير إلى جرس المشاركين بنجاح"), backgroundColor: Color(0xFF9575CD)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = isGlobalDarkMode;
@@ -153,7 +188,6 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
           String dbCreatorId = d['userId'] ?? "";
           isCreator = (myId == dbCreatorId);
           
-          // استبعاد صاحب الموعد من القائمة الظاهرة
           participants = rawParticipants.where((email) => email != myEmail || !isCreator).toList();
         }
 
@@ -190,7 +224,7 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
                 ],
                 _buildTile(Icons.sticky_note_2_outlined, _notes.isEmpty ? "لا توجد ملاحظات" : _notes, isDarkMode),
                 const SizedBox(height: 35),
-                _buildDynamicActionButtons(isCreator, hasParticipants, confirmed, isDarkMode),
+                _buildDynamicActionButtons(isCreator, hasParticipants, participants, confirmed, isDarkMode),
               ]),
             ),
           ),
@@ -256,14 +290,14 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
     ]),
   );
 
-  Widget _buildDynamicActionButtons(bool isCreator, bool hasParticipants, List<dynamic> confirmed, bool isDarkMode) {
+  Widget _buildDynamicActionButtons(bool isCreator, bool hasParticipants, List<dynamic> participants, List<dynamic> confirmed, bool isDarkMode) {
     String myEmail = FirebaseAuth.instance.currentUser?.email ?? "";
 
     if (isCreator) {
       return Column(children: [
         if (hasParticipants) ...[
           _gradBtn("إرسال تذكير للمشاركين ", () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم إرسال تذكير للجميع"), backgroundColor: Color(0xFF9575CD)));
+            _sendReminderToBellOnly(participants);
           }, isReminder: true),
           const SizedBox(height: 12),
         ],
@@ -305,7 +339,7 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
         boxShadow: [BoxShadow(color: colors.last.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: ElevatedButton(
-        onPressed: (isGreen == true) ? null : o, 
+        onPressed: o, 
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent, 
           shadowColor: Colors.transparent, 
@@ -362,14 +396,10 @@ class _AppointmentDetailsPageState extends State<AppointmentDetailsPage> {
                         .where('email', isEqualTo: email)
                         .get(),
                     builder: (context, snapshot) {
-                      // القيمة الافتراضية في حال وجود أي مشكلة في جلب البيانات
                       String displayName = email.split('@')[0];
 
                       if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                        // تحويل المستند إلى Map بشكل آمن
                         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>?;
-                        
-                        // التأكد من أن الحقل name موجود وليس فارغاً
                         if (data != null && data.containsKey('name') && data['name'] != null) {
                           displayName = data['name'].toString();
                         }
