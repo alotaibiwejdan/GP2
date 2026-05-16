@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'settings_page.dart'; // تأكدي من استيراد الملف الذي يحتوي على isGlobalDarkMode
-
+import 'settings_page.dart'; 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
 
@@ -39,12 +38,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = isGlobalDarkMode; // ✅ تفعيل الدارك مود
+    bool isDarkMode = isGlobalDarkMode; 
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        // ✅ لون الخلفية يتغير حسب الثيم
         backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFFAFBFD),
         appBar: AppBar(
           backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
@@ -93,7 +91,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     IconData iconData;
     Color iconColor;
     
-    // تحديد الأيقونة بناءً على النوع
     switch (data['type']) {
       case 'traffic':
         iconData = Icons.traffic;
@@ -114,7 +111,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        // ✅ لون البطاقة في الدارك مود
         color: isDarkMode 
             ? (isUnread ? const Color(0xFF2C2C2C) : const Color(0xFF1E1E1E))
             : (isUnread ? Colors.blue.withOpacity(0.05) : Colors.white),
@@ -128,7 +124,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start, // لجعل الأيقونة في الأعلى قليلاً
+        crossAxisAlignment: CrossAxisAlignment.start, 
         children: [
           CircleAvatar(
             backgroundColor: iconColor.withOpacity(0.1),
@@ -139,7 +135,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ عرض العنوان (تذكير بموعد)
                 Text(
                   data['title'] ?? 'تنبيه جديد', 
                   style: TextStyle(
@@ -149,7 +144,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // ✅ عرض محتوى الرسالة
                 Text(
                   data['body'] ?? data['message_content'] ?? '',
                   style: TextStyle(
@@ -178,7 +172,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     DateTime dt = (timestamp as Timestamp).toDate();
     return "${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
   }
-}?/*import 'package:flutter/material.dart';
+}/*import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_page.dart'; // تأكدي من استيراد الملف الذي يحتوي على isGlobalDarkMode
