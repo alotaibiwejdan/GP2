@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // تأكدي إن pub get اشتغل
+import 'package:firebase_messaging/firebase_messaging.dart'; 
 import 'onboarding_screen.dart';
 import 'settings_page.dart'; 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-// 1. دالة معالجة الإشعارات في الخلفية - لازم تكون خارج أي كلاس
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print("Handling a background message: ${message.messageId}");
@@ -31,7 +30,6 @@ void main() async {
       } else {
         await Firebase.initializeApp();
         
-        // إعدادات الإشعارات
         FirebaseMessaging messaging = FirebaseMessaging.instance;
         await messaging.requestPermission(
           alert: true,
@@ -66,7 +64,6 @@ class _MyAppState extends State<MyApp> {
     
     super.initState();
     
-    // الاستماع للإشعارات والتطبيق مفتوح
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +75,6 @@ class _MyAppState extends State<MyApp> {
       }
     });
 
-    // إذا ضغط المستخدم على الإشعار والتطبيق مقفل
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print("تم فتح التطبيق من الإشعار");
     });
@@ -93,7 +89,6 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false, 
       title: 'مرسال',
-      // استخدام المتغير العام isGlobalDarkMode من صفحة الإعدادات
       themeMode: isGlobalDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         fontFamily: 'Tajawal', 
