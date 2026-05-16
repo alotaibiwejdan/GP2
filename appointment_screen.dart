@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart'; 
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // 1. أضفنا هذا
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
 import 'appointment_page.dart'; 
 import 'appointment_details_page.dart'; 
 import 'settings_page.dart'; 
@@ -19,7 +19,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   DateTime selectedDate = DateTime.now(); 
   bool showGroupOnly = false;
   
-  // تعريف بلجن الإشعارات المحلية
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
   String? get currentUserEmail => FirebaseAuth.instance.currentUser?.email?.toLowerCase();
@@ -28,19 +27,15 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   void initState() {
     super.initState();
     
-    // إعداد الإشعارات وحفظ التوكن
     _setupNotifications();
     saveDeviceToken();
   }
 
-  // ✅ دالة الإعداد الجديدة عشان تظهر الإشعارات "صدق"
   Future<void> _setupNotifications() async {
-    // طلب الإذن
     await FirebaseMessaging.instance.requestPermission(
       alert: true, badge: true, sound: true,
     );
 
-    // إعداد القناة لأندرويد
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel', 
       'High Importance Notifications',
@@ -51,10 +46,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // الاستماع للإشعارات والتطبيق مفتوح
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
-        // 1. إظهار SnackBar (مثل ما كنتِ تبغين)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("${message.notification!.title}: ${message.notification!.body}"),
@@ -63,10 +56,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           ),
         );
 
-        // 2. إظهار إشعار علوي (غصب عن النظام)
-        // إظهار إشعار النظام العلوي بشكل صحيح
        _localNotifications.show(
-          id: message.notification.hashCode, // حددنا إن هذا الـ id
+          id: message.notification.hashCode,
           title: message.notification!.title, 
           body: message.notification!.body,
           notificationDetails: NotificationDetails(
@@ -95,10 +86,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             .set({
               'fcmToken': token, 
             }, SetOptions(merge: true));
-        print("✅ تم حفظ التوكن في الفايرستور: $token");
+        print(" تم حفظ التوكن في الفايرستور: $token");
       }
     } catch (e) {
-      print("❌ خطأ في جلب التوكن: $e");
+      print(" خطأ في جلب التوكن: $e");
     }
   }
 
