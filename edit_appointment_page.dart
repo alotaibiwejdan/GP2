@@ -29,7 +29,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _isLoading = true;
 
-  // إضافات البحث عن الموقع (Nominatim)
   List<dynamic> _locationSuggestions = []; 
   Timer? _debounce;
 
@@ -47,7 +46,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     super.dispose();
   }
 
-  // دالة جلب البيانات الحالية من الفايربيس
   Future<void> _fetchCurrentData() async {
     try {
       var doc = await FirebaseFirestore.instance
@@ -77,7 +75,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     }
   }
 
-  // دالة البحث عن الموقع (Autocomplete)
   void _onLocationChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     
@@ -123,7 +120,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
-  // دالة التحديث النهائي في قاعدة البيانات
   Future<void> _updateAppointment() async {
     if (widget.appointmentId.isEmpty) return;
 
@@ -141,7 +137,7 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("تم حفظ التعديلات بنجاح ✅")),
+          const SnackBar(content: Text("تم حفظ التعديلات بنجاح ")),
         );
       }
     } catch (e) {
@@ -182,7 +178,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
               const SizedBox(height: 20),
               _buildLabel("الموقع (العنوان)"),
               
-              // حقل الموقع المطور مع البحث
               TextField(
                 controller: _locationController,
                 textAlign: TextAlign.right,
@@ -198,7 +193,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
                 ),
               ),
 
-              // قائمة الاقتراحات
               if (_locationSuggestions.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.only(top: 5),
@@ -278,7 +272,6 @@ class _EditAppointmentPageState extends State<EditAppointmentPage> {
     );
   }
 
-  // --- Widgets مساعدة للواجهة ---
   Widget _buildLabel(String text) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text, style: TextStyle(color: mersalPurple, fontWeight: FontWeight.bold)));
