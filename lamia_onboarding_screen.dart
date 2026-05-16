@@ -119,7 +119,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
 
-                  // Skip (كبرنا مساحة الضغط)
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: _skip,
